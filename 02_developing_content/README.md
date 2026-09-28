@@ -20,7 +20,7 @@
 | **Goal** | Describe managed hosts in an inventory, write single and multiple play playbooks, and find and fix faults in playbooks and managed hosts |
 | **Study time** | About 6 hours including exercises |
 | **Activities** | [05_quiz.md](05_quiz.md), four guided exercises, [06_lab.md](06_lab.md) (graded) |
-| **Lab prerequisite** | Chapter 01 complete; `00_lab_setup/02_dev_services.md` section 3 (collections on materials.example.com) done |
+| **Lab prerequisite** | Chapter 01 complete; collections on materials.example.com ([lab build guide](../00_lab_setup/README.md) Step 6.2) |
 
 ---
 

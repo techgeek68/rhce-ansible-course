@@ -19,7 +19,7 @@
 | **Goal** | Package automation as roles, consume roles and collections from archives, Git, and hubs, and use RHEL system roles |
 | **Study time** | About 7 hours including exercises |
 | **Activities** | [04_quiz.md](04_quiz.md), three guided exercises, [05_lab.md](05_lab.md) (graded) |
-| **Lab prerequisite** | Chapter 06 complete; `community.general` and `ansible.posix` tarballs on materials.example.com (`00_lab_setup/02_dev_services.md` section 3) |
+| **Lab prerequisite** | Chapter 06 complete; `community.general` and `ansible.posix` tarballs on materials.example.com ([lab build guide](../00_lab_setup/README.md) Step 6.2) |
 
 ---
 

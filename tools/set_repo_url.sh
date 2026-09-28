@@ -14,6 +14,7 @@ if [ -z "$files" ]; then
   exit 0
 fi
 for f in $files; do
+  # -i.bak is accepted by both GNU and BSD sed; the backup is removed right away
   sed -i.bak "s|YOUR_ACCOUNT/YOUR_REPO|$1/$2|g" "$f"
   rm -f "$f.bak"
   echo "updated $f"

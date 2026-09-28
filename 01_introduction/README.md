@@ -18,7 +18,7 @@
 | **Goal** | Understand how Ansible works, build the toolchain you will use for the rest of the course, and control Ansible behavior through configuration files |
 | **Study time** | About 4 hours including exercises |
 | **Activities** | [03_quiz.md](03_quiz.md), [01_guided_exercise_intro_devenv.md](01_guided_exercise_intro_devenv.md), [02_guided_exercise_intro_configure.md](02_guided_exercise_intro_configure.md), [04_lab.md](04_lab.md) (graded) |
-| **Lab prerequisite** | `00_lab_setup/02_dev_services.md` completed |
+| **Lab prerequisite** | [Lab build guide](../00_lab_setup/README.md) Step 6 completed |
 
 ---
 
@@ -593,6 +593,6 @@ Tick each item only when you can do it without looking at this chapter.
 
 ---
 
-← Previous: [00 Lab Setup, Part 3: Developer Services](../00_lab_setup/02_dev_services.md) | Next: [Guided Exercise: Build Your Ansible Development Environment](01_guided_exercise_intro_devenv.md) →
+← Previous: [00 Lab Setup Reference: How the `lab` Command Works](../00_lab_setup/01_lab_command.md) | Next: [Guided Exercise: Build Your Ansible Development Environment](01_guided_exercise_intro_devenv.md) →
 
 <!-- navfoot:end -->

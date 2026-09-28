@@ -3,7 +3,7 @@
   hosts: workstation
   gather_facts: false
   tasks:
-    - name: Verify the developer services from 00_lab_setup/02_dev_services.md
+    - name: Verify the developer services from Step 6 of 00_lab_setup/README.md
       ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
 
     - name: Create the git-repos directory

@@ -81,7 +81,7 @@ Keep the executable bits: Git records them, and `lab_framework/bin/lab`, `instal
 * The repository front page shows `README.md` with the study path and the generated contents table.
 * Open `01_introduction/`: the lesson renders with its page list; the **Next** link at the bottom leads to the first guided exercise.
 * The **Actions** tab shows **Course checks** passing.
-* On a lab VM, the clone command in `00_lab_setup/02_dev_services.md` works.
+* On a lab VM, the clone command in Step 6.3 of `00_lab_setup/README.md` works.
 
 ---
 
@@ -94,7 +94,7 @@ git switch -c chapter-09                   # work on a branch
 ```
 
 1. Create `09_topic/README.md` (lesson) and the numbered pages: `01_guided_exercise_NAME.md` ..., `NN_quiz.md`, `NN_lab.md`, `NN_lab_solution.md`.
-2. Add the exercises under `lab_framework/exercises/NAME/` and their lines to the `lab list` table in `00_lab_setup/02_dev_services.md`.
+2. Add the exercises under `lab_framework/exercises/NAME/` and their lines to the `lab list` output in Step 6.3 of `00_lab_setup/README.md`.
 3. Add the chapter to the **Progress Checklist** in the root `README.md`.
 4. Refresh and check:
 

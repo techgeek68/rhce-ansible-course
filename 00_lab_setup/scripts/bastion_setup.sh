@@ -198,6 +198,13 @@ create_lab_key() {
     sudo -u student ssh-keygen -q -t ed25519 -N '' -C 'rh294-lab' -f "$home/.ssh/id_ed25519"
   fi
   PUBKEY=$(cat "$home/.ssh/id_ed25519.pub")
+  # Let the same key log in to bastion itself, so your computer and workstation
+  # can reach bastion without a password once they hold the key.
+  touch "$home/.ssh/authorized_keys"
+  grep -qxF "$PUBKEY" "$home/.ssh/authorized_keys" || echo "$PUBKEY" >> "$home/.ssh/authorized_keys"
+  chown student:student "$home/.ssh/authorized_keys"
+  chmod 600 "$home/.ssh/authorized_keys"
+  restorecon -R "$home/.ssh"
 }
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 <!-- nav:start -->
-[Course home](../README.md) › [00 Lab Setup: Build the Complete RH294 Lab on Your Own Virtual Machines](README.md) › Guide (2 of 3)
+[Course home](../README.md) › [00 Lab Setup: Build the Complete Lab, Step 1 to Step 6](README.md) › Guide (2 of 2)
 <!-- nav:end -->
 
-# 00 Lab Setup, Part 2: The `lab` Command (start, grade, finish)
+# 00 Lab Setup Reference: How the `lab` Command Works
 
 The Red Hat classroom prepares, grades, and cleans every activity with one command:
 
@@ -10,9 +10,9 @@ The Red Hat classroom prepares, grades, and cleans every activity with one comma
 [student@workstation ~]$ lab action exercise
 ```
 
-That command is proprietary and is not available in the local lab you built in `README.md`. This chapter builds a replacement with **the same syntax, the same three actions, the same PASS/FAIL grading output, and the same tab completion**, written entirely in Bash and Ansible. Every chapter in this repository ships its exercises for this framework, so your daily routine is identical to the official course.
+That command is proprietary and is not available in the local lab. This course ships a replacement with **the same syntax, the same three actions, the same PASS/FAIL grading output, and the same tab completion**, written entirely in Bash and Ansible. Every chapter in this repository ships its exercises for this framework, so your daily routine is identical to the official course.
 
-Prerequisite: sections 1 to 9 of `00_lab_setup/README.md` are complete.
+**This page is optional reading.** You do not need it to build the lab: Step 6 of the [lab build guide](README.md) installs and tests the framework from the course repository. Read it when you want to understand how exercises are prepared and graded, when a `lab` command fails, or when you write exercises of your own.
 
 ---
 
@@ -20,10 +20,9 @@ Prerequisite: sections 1 to 9 of `00_lab_setup/README.md` are complete.
 
 | Official activity | What it is | Where it lives in this repository | `lab` actions |
 |---|---|---|---|
-| Guided exercise | Procedure walked through step by step after a lecture section | `NN_chapter/guided_exercise_NAME.md` | `start`, `finish` |
-| Quiz | Knowledge check where a hands on task is impractical | `NN_chapter/quiz.md`, answers hidden in collapsible blocks | none |
-| End of chapter lab | High level steps, no commands given, graded | `NN_chapter/lab.md`, solution in `NN_chapter/lab_solution.md` | `start`, `grade`, `finish` |
-| Comprehensive review | Specification only, covers the whole course, graded | `99_comprehensive_review/` | `start`, `grade`, `finish` |
+| Guided exercise | Procedure walked through step by step after a lesson section | `NN_chapter/NN_guided_exercise_NAME.md` | `start`, `finish` |
+| Quiz | Knowledge check | `NN_chapter/NN_quiz.md`, answers hidden in collapsible blocks | none |
+| End of chapter lab | High level requirements, no commands given, graded | `NN_chapter/NN_lab.md`, solution in `NN_chapter/NN_lab_solution.md` | `start`, `grade`, `finish` |
 
 Exercise names use underscores (for example `sample_webserver`) instead of the hyphenated names used in the official course.
 
@@ -86,9 +85,9 @@ Installed locations on workstation:
 
 ---
 
-## 4. Build the Framework on workstation
+## 4. The Framework Files, Explained
 
-If you cloned the course from GitHub ([Part 3, section 5](02_dev_services.md#5-install-the-framework-exercises)), every file below already exists: read this section to understand them, then continue with section 6. The steps are for building the framework from scratch.
+The course repository already contains every file below in `lab_framework/`, and Step 6.3 of the [build guide](README.md#63-put-the-course-on-workstation-and-install-the-lab-command) installs them. The commands show how each file was created, which is useful only if you rebuild the framework from scratch.
 
 Log in to workstation as `student` and create the directory tree inside your course repository:
 
@@ -284,11 +283,20 @@ LAB_EOF
 cat > inventory <<'LAB_EOF'
 workstation ansible_connection=local ansible_python_interpreter=/usr/bin/python3 ansible_become_password=student
 
+# Content server; only used to publish lab repositories
+utility ansible_host=utility.lab.example.com ansible_user=student ansible_become_password=student
+
 [managed]
 servera ansible_host=servera.lab.example.com
 serverb ansible_host=serverb.lab.example.com
 serverc ansible_host=serverc.lab.example.com
 serverd ansible_host=serverd.lab.example.com
+
+[all:vars]
+gitea_url=http://utility.lab.example.com:3000
+gitea_user=student
+gitea_password=Student@123
+lab_registry=utility.lab.example.com:5000
 LAB_EOF
 ```
 
@@ -690,7 +698,7 @@ Framework playbooks may use only `ansible.builtin` modules. Where a module from 
 | Situation | Use |
 |---|---|
 | Finished an exercise normally | `lab finish EXERCISE` on workstation |
-| `lab finish` fails, or you broke a managed host badly (sudoers, SSH, networking, bootloader) | Revert servera to serverd to the `baseline` snapshot (`README.md` section 12) |
+| `lab finish` fails, or you broke a managed host badly (sudoers, SSH, networking, bootloader) | Revert servera to serverd to the `baseline` snapshot ([Reset to the clean state](README.md#reset-to-the-clean-state)) |
 | Starting a timed mock exam | Revert the managed hosts to `baseline`, then `lab start` for the exam |
 | `lab` itself stops working after you edited the framework | `cd ~/rhce_ansible_course/lab_framework && git checkout . && ./install.sh` |
 
@@ -726,6 +734,6 @@ Each following chapter adds its exercises under `lab_framework/exercises/` and t
 
 ---
 
-← Previous: [00 Lab Setup: Build the Complete RH294 Lab on Your Own Virtual Machines](README.md) | Next: [00 Lab Setup, Part 3: Developer Services](02_dev_services.md) →
+← Previous: [00 Lab Setup: Build the Complete Lab, Step 1 to Step 6](README.md) | Next: [Chapter 01: Introduction to Ansible](../01_introduction/README.md) →
 
 <!-- navfoot:end -->

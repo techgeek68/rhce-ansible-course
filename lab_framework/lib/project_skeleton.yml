@@ -33,7 +33,7 @@
 - name: Stop when ansible.posix is not published
   ansible.builtin.assert:
     that: posix_tarball | default('', true) | length > 0
-    fail_msg: "ansible.posix is missing on materials.example.com. Complete 00_lab_setup/02_dev_services.md section 3."
+    fail_msg: "ansible.posix is missing on materials.example.com. Complete Step 6.2 of 00_lab_setup/README.md."
 
 - name: Install ansible.posix into the project collections directory
   ansible.builtin.command:

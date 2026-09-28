@@ -1,0 +1,23 @@
+---
+argument_specs:
+  main:
+    short_description: One Apache virtual host per call
+    description:
+      - Installs Apache, creates a document root, a home page, and a virtual host, and opens the port.
+    options:
+      vhost_name:
+        type: str
+        required: true
+        description: Short name of the site; used for the document root and configuration file names.
+      vhost_port:
+        type: int
+        default: 80
+        description: TCP port the virtual host listens on.
+      vhost_title:
+        type: str
+        default: Welcome
+        description: Text of the generated home page.
+      vhost_root:
+        type: path
+        default: /var/www/sites
+        description: Parent directory of all document roots.

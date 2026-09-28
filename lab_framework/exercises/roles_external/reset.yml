@@ -1,0 +1,16 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove the shell settings
+      ansible.builtin.file:
+        path: /etc/profile.d/lab_shell.sh
+        state: absent
+
+    - name: Empty the login banner
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/motd
+        mode: "0644"

@@ -1,0 +1,139 @@
+---
+- name: Grade the project files on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/intro_review
+    expected_image: utility.lab.example.com:5000/ansible-automation-platform-26/ee-supported-rhel9:latest
+  tasks:
+    - name: Read the effective Ansible configuration of the project
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-config, dump, --only-changed]
+        chdir: "{{ project }}"
+      register: cfg
+      changed_when: false
+      failed_when: false
+
+    - name: Grade that the project ansible.cfg is the active configuration
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "ansible.cfg in intro_review is the active config"
+        lab_pass: "{{ (project ~ '/ansible.cfg') in cfg.stdout }}"
+
+    - name: Grade the inventory setting
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "inventory points to intro_review/inventory"
+        lab_pass: "{{ cfg.stdout is search('DEFAULT_HOST_LIST\\(.*\\) = .*' ~ project ~ '/inventory') }}"
+
+    - name: Grade the remote user setting
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "remote_user is devops"
+        lab_pass: "{{ cfg.stdout is search('DEFAULT_REMOTE_USER\\(.*\\) = devops') }}"
+
+    - name: Grade the privilege escalation setting
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "become is enabled for every play"
+        lab_pass: "{{ cfg.stdout is search('DEFAULT_BECOME\\(.*\\) = True') }}"
+
+    - name: Grade the log path setting
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "log_path writes intro_review/ansible.log"
+        lab_pass: "{{ cfg.stdout is search('DEFAULT_LOG_PATH\\(.*\\) = ' ~ project ~ '/ansible.log') }}"
+
+    - name: Read ansible-navigator.yml
+      ansible.builtin.slurp:
+        src: "{{ project }}/ansible-navigator.yml"
+      register: nav_raw
+      failed_when: false
+
+    - name: Parse the navigator settings
+      ansible.builtin.set_fact:
+        nav: "{{ ((nav_raw.content | default('') | b64decode | from_yaml) | default({}, true))['ansible-navigator'] | default({}) }}"
+
+    - name: Extract execution environment settings
+      ansible.builtin.set_fact:
+        nav_ee: "{{ nav['execution-environment'] | default({}) }}"
+
+    - name: Grade the execution environment image
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Navigator uses the lab ee-supported-rhel9 image"
+        lab_pass: "{{ (nav_ee.enabled | default(false) | bool) and nav_ee.image | default('') == expected_image }}"
+
+    - name: Grade the pull policy and TLS argument
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Pull policy missing with --tls-verify=false"
+        lab_pass: "{{ (nav_ee.pull | default({})).policy | default('') == 'missing' and '--tls-verify=false' in ((nav_ee.pull | default({})).arguments | default([])) }}"
+
+    - name: Grade the output mode
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Navigator mode is stdout"
+        lab_pass: "{{ nav.mode | default('') == 'stdout' }}"
+
+    - name: Grade playbook artifacts
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Playbook artifacts are disabled"
+        lab_pass: "{{ not ((nav['playbook-artifact'] | default({})).enable | default(true) | bool) }}"
+
+    - name: Read the latest commit on Gitea
+      ansible.builtin.uri:
+        url: "{{ gitea_url }}/api/v1/repos/{{ gitea_user }}/intro_review/commits?limit=1"
+        url_username: "{{ gitea_user }}"
+        url_password: "{{ gitea_password }}"
+        force_basic_auth: true
+        return_content: true
+      register: commits
+      failed_when: false
+
+    - name: Grade the pushed commit author
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Pushed commit authored by student@lab.example.com"
+        lab_pass: "{{ commits.status | default(0) == 200 and (commits.json | default([]) | length > 0) and commits.json[0].commit.author.email == 'student@lab.example.com' }}"
+
+    - name: Look for the configuration files in the remote repository
+      ansible.builtin.uri:
+        url: "{{ gitea_url }}/api/v1/repos/{{ gitea_user }}/intro_review/contents/{{ item }}"
+        url_username: "{{ gitea_user }}"
+        url_password: "{{ gitea_password }}"
+        force_basic_auth: true
+      loop:
+        - ansible.cfg
+        - ansible-navigator.yml
+      register: remote_files
+      failed_when: false
+
+    - name: Grade the pushed files
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "ansible.cfg and ansible-navigator.yml are pushed"
+        lab_pass: "{{ remote_files.results | map(attribute='status') | select('equalto', 200) | list | length == 2 }}"
+
+- name: Grade the managed hosts
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the marker file
+      ansible.builtin.slurp:
+        src: /etc/intro_review_marker
+      register: marker
+      failed_when: false
+
+    - name: Inspect the marker ownership
+      ansible.builtin.stat:
+        path: /etc/intro_review_marker
+      register: marker_stat
+
+    - name: Grade the marker
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} marker written as root"
+        lab_pass: "{{ marker_stat.stat.exists and marker_stat.stat.pw_name == 'root' and 'Configured by root' in (marker.content | default('') | b64decode) }}"

@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+PS1='{{ shell_env_prompt }}'
+HISTSIZE={{ shell_env_history_size }}
+HISTTIMEFORMAT='%F %T '
+export PS1 HISTSIZE HISTTIMEFORMAT

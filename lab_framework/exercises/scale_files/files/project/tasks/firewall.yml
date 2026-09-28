@@ -1,0 +1,9 @@
+---
+# Parameters: fw_services (list of firewalld service names)
+- name: Firewall allows the services now and after reboot
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ fw_services }}"

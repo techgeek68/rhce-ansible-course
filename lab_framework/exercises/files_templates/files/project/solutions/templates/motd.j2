@@ -1,0 +1,16 @@
+{# Login banner. Rendered separately for every host. #}
+==== {{ ansible_managed }} ====
+Host:    {{ ansible_facts['fqdn'] }}
+System:  {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+Size:    {{ (ansible_facts['memtotal_mb'] / 1024) | round(1) }} GiB RAM, {{ ansible_facts['processor_vcpus'] }} vCPU
+{% if 'web' in group_names %}
+Role:    web server. Report issues to {{ support['web'] }}
+{% elif 'db' in group_names %}
+Role:    database server. Report issues to {{ support['db'] }}
+{% else %}
+Role:    unassigned
+{% endif %}
+Addresses:
+{% for addr in ansible_facts['all_ipv4_addresses'] | sort %}
+  {{ loop.index }}. {{ addr }}
+{% endfor %}

@@ -1,0 +1,9 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Time zone back to UTC
+      ansible.builtin.command: timedatectl set-timezone UTC
+      changed_when: false

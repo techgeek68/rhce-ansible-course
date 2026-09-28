@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+# Every lab host with its address, as known to Ansible
+{% for host in groups['all'] | sort %}
+{{ hostvars[host]['ansible_facts']['default_ipv4']['address'] }} {{ host }}{{ '  # this host' if host == inventory_hostname else '' }}
+{% endfor %}

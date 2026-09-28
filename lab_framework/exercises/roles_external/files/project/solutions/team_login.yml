@@ -1,0 +1,16 @@
+---
+- name: Team login experience
+  hosts: web
+  tasks:
+    - name: Shell environment with a custom prompt
+      ansible.builtin.import_role:
+        name: labteam.shell_env
+      vars:
+        shell_env_prompt: '[\u on \h in \W]\$ '
+        shell_env_history_size: 10000
+
+    - name: Login banner
+      ansible.builtin.import_role:
+        name: labteam.motd
+      vars:
+        motd_message: Development host. Ask before rebooting.

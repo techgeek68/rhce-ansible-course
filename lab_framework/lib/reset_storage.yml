@@ -1,0 +1,28 @@
+---
+# Removes lab volume groups, their fstab entries, and signatures on their disks.
+# Required variable: reset_vgs (list of volume group names)
+# Optional variable: reset_mounts (list of extra mount points to remove from fstab)
+- name: Volume groups, their mounts, and swap are removed
+  ansible.builtin.shell: |
+    for vg in {{ reset_vgs | join(' ') }}; do
+      vgs "$vg" >/dev/null 2>&1 || continue
+      pvs_list=$(pvs --noheadings -o pv_name -S vg_name="$vg" | tr -d ' ')
+      for lv in $(lvs --noheadings -o lv_path "$vg" | tr -d ' '); do
+        uuid=$(blkid -s UUID -o value "$lv" 2>/dev/null || true)
+        swapoff "$lv" 2>/dev/null || true
+        umount -l "$lv" 2>/dev/null || true
+        if [ -n "$uuid" ]; then sed -i "\|$uuid|d" /etc/fstab; fi
+        sed -i "\|^$lv[[:space:]]|d" /etc/fstab
+      done
+      vgremove -ff -y "$vg"
+      for pv in $pvs_list; do
+        pvremove -ff -y "$pv" || true
+        wipefs -a "$pv" || true
+      done
+    done
+    for mp in {{ reset_mounts | default([]) | join(' ') }}; do
+      umount -l "$mp" 2>/dev/null || true
+      sed -i "\|[[:space:]]$mp[[:space:]]|d" /etc/fstab
+    done
+    systemctl daemon-reload
+  changed_when: false

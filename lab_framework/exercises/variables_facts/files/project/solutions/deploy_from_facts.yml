@@ -1,0 +1,18 @@
+---
+- name: Deployment is driven by each host's own facts
+  hosts: web
+  tasks:
+    - name: Short name for the deployment facts
+      ansible.builtin.set_fact:
+        deploy: "{{ ansible_facts['ansible_local']['app']['deploy'] }}"
+
+    - name: Package from the facts is installed
+      ansible.builtin.dnf:
+        name: "{{ deploy['package'] }}"
+        state: present
+
+    - name: Service from the facts is in the requested state
+      ansible.builtin.systemd_service:
+        name: "{{ deploy['service'] }}"
+        state: "{{ deploy['state'] }}"
+        enabled: "{{ deploy['enabled'] }}"

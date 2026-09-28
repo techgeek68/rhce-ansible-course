@@ -1,0 +1,13 @@
+---
+# redhat.rhel_system_roles.selinux
+selinux_state: enforcing
+selinux_policy: targeted
+selinux_booleans:
+  - name: httpd_can_network_connect
+    state: true
+    persistent: true
+selinux_ports:
+  - ports: "8088"
+    proto: tcp
+    setype: http_port_t
+    state: present

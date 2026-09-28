@@ -1,0 +1,50 @@
+---
+# Builds a signed lab-agent RPM repository on workstation (once) and publishes it at
+# http://materials.example.com/yum/labrepo/ with the key RPM-GPG-KEY-labexample.
+# Import from an exercise start.yml with: ansible.builtin.import_playbook: ../../lib/lab_repo.yml
+- name: Build the signed lab repository on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    repo_work: /home/student/.lab/repo_build
+  tasks:
+    - name: Packaging tools are installed
+      ansible.builtin.dnf:
+        name:
+          - rpm-build
+          - rpm-sign
+          - createrepo_c
+          - gnupg2
+        state: present
+      become: true
+
+    - name: Repository is built once
+      ansible.builtin.command:
+        cmd: >-
+          {{ lab_lib }}/lab_repo/build_repo.sh {{ lab_lib }}/lab_repo/lab-agent.spec
+          {{ repo_work }}/out {{ repo_work }}/work
+        creates: "{{ repo_work }}/out/repodata/repomd.xml"
+
+- name: Publish the lab repository on utility
+  hosts: utility
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Repository files are published
+      ansible.builtin.copy:
+        src: /home/student/.lab/repo_build/out/
+        dest: /var/www/html/materials/yum/labrepo/
+        mode: preserve
+        directory_mode: "0755"
+
+    - name: Published files have the web content label
+      ansible.builtin.command: restorecon -R /var/www/html/materials/yum
+      changed_when: false
+
+- name: Confirm the repository answers
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Repository metadata is reachable
+      ansible.builtin.uri:
+        url: http://materials.example.com/yum/labrepo/repodata/repomd.xml

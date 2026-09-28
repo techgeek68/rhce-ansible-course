@@ -1,0 +1,14 @@
+---
+# redhat.rhel_system_roles.network
+network_provider: nm
+network_connections:
+  - name: labbr0
+    type: bridge
+    state: up
+    autoconnect: true
+    zone: internal
+    ip:
+      dhcp4: false
+      auto6: false
+      address:
+        - "192.168.251.{{ ansible_facts['default_ipv4']['address'].split('.')[-1] }}/24"

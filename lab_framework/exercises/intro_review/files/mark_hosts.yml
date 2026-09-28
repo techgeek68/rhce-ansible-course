@@ -1,0 +1,11 @@
+---
+- name: Leave a root owned marker on every managed host
+  hosts: all
+  tasks:
+    - name: Write /etc/intro_review_marker
+      ansible.builtin.copy:
+        content: "Configured by {{ ansible_facts['user_id'] }} through Ansible\n"
+        dest: /etc/intro_review_marker
+        owner: root
+        group: root
+        mode: "0644"

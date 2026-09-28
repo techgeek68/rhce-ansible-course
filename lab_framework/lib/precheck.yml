@@ -1,0 +1,7 @@
+---
+- name: Verify that the lab systems for this exercise respond
+  hosts: "{{ lab_hosts }}"
+  gather_facts: false
+  tasks:
+    - name: Reach each host through SSH and Python
+      ansible.builtin.ping:

@@ -1,0 +1,185 @@
+---
+- name: Grade the project layout on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/system_review
+  tasks:
+    - name: Inspect the variable files
+      ansible.builtin.stat:
+        path: "{{ project }}/group_vars/app/{{ item }}"
+      loop:
+        - storage.yml
+        - network.yml
+      register: gv
+
+    - name: Grade the variable files
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Role variables in group_vars/app/storage.yml and network.yml"
+        lab_pass: "{{ gv.results | map(attribute='stat.exists') | list == [true, true] }}"
+
+    - name: Read the generated public keys
+      ansible.builtin.slurp:
+        src: "{{ project }}/files/keys/{{ item }}.pub"
+      loop:
+        - ops1
+        - ops2
+      register: pubkeys
+      failed_when: false
+
+    - name: Keep the keys for the host checks
+      ansible.builtin.set_fact:
+        ops_keys: "{{ pubkeys.results | map(attribute='content') | map('b64decode') | map('trim') | list }}"
+      when: pubkeys.results | selectattr('content', 'defined') | list | length == 2
+
+- name: Grade serverb
+  hosts: serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the repository file
+      ansible.builtin.slurp:
+        src: /etc/yum.repos.d/lab_internal.repo
+      register: repo_raw
+      failed_when: false
+
+    - name: Grade the repository definition
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        repo_text: "{{ repo_raw.content | default('') | b64decode }}"
+        lab_check: "lab_internal.repo defines lab-internal with URL, GPG check, and key"
+        lab_pass: >-
+          {{ repo_text is search('\[lab-internal\]') and
+             repo_text is search('name\s*=\s*Lab Example internal packages') and
+             repo_text is search('baseurl\s*=\s*http://materials.example.com/yum/labrepo/?\s') and
+             repo_text is search('gpgcheck\s*=\s*(1|true)') and
+             repo_text is search('gpgkey\s*=\s*http://materials.example.com/yum/labrepo/RPM-GPG-KEY-labexample') }}
+
+    - name: Query the agent package and timer
+      ansible.builtin.shell: |
+        rpm -qi lab-agent | grep '^Signature' | grep -v '(none)' &&
+        systemctl is-enabled lab-agent.timer && systemctl is-active lab-agent.timer
+      register: agent
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the agent
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Signed lab-agent installed; lab-agent.timer enabled and active"
+        lab_pass: "{{ agent.rc == 0 }}"
+
+    - name: Query the accounts
+      ansible.builtin.shell: |
+        getent group ops | cut -d: -f3
+        id -u ops1; id -nG ops1
+        id -u ops2; id -nG ops2
+      register: accounts
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the accounts
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        acc: "{{ accounts.stdout_lines }}"
+        lab_check: "Group ops (3000); ops1 (3001) and ops2 (3002) are members"
+        lab_pass: >-
+          {{ acc | length == 5 and acc[0] == '3000' and acc[1] == '3001' and acc[3] == '3002' and
+             'ops' in acc[2].split() and 'ops' in acc[4].split() }}
+
+    - name: Read the authorized keys
+      ansible.builtin.slurp:
+        src: /home/{{ item }}/.ssh/authorized_keys
+      loop:
+        - ops1
+        - ops2
+      register: authkeys
+      failed_when: false
+
+    - name: Grade the authorized keys
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        wanted: "{{ hostvars['workstation']['ops_keys'] | default(['missing', 'missing']) }}"
+        lab_check: "ops1 and ops2 accept their keys from files/keys/"
+        lab_pass: >-
+          {{ wanted[0] in (authkeys.results[0].content | default('') | b64decode) and
+             wanted[1] in (authkeys.results[1].content | default('') | b64decode) }}
+
+    - name: Query the sudo rule
+      ansible.builtin.shell: |
+        stat -c '%a %U' /etc/sudoers.d/ops && visudo -cf /etc/sudoers.d/ops >/dev/null &&
+        grep -Ex '%ops[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]*ALL' /etc/sudoers.d/ops
+      register: sudo_rule
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the sudo rule
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "/etc/sudoers.d/ops: valid, mode 440, ops members without password"
+        lab_pass: "{{ sudo_rule.rc == 0 and sudo_rule.stdout_lines[0] | default('') == '440 root' }}"
+
+    - name: Query the logical volumes
+      ansible.builtin.command: lvs --noheadings --units m --nosuffix -o lv_name,lv_size app_vg
+      register: lvs_out
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the logical volumes
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        sizes: "{{ dict(lvs_out.stdout_lines | map('trim') | map('split') | list) }}"
+        lab_check: "app_vg has app_data 256m, app_logs 128m, app_swap 64m"
+        lab_pass: >-
+          {{ (sizes['app_data'] | default(0) | float) == 256.0 and
+             (sizes['app_logs'] | default(0) | float) == 128.0 and
+             (sizes['app_swap'] | default(0) | float) == 64.0 }}
+
+    - name: Query mounts, fstab, and swap
+      ansible.builtin.shell: |
+        findmnt -n -o FSTYPE --target /srv/app | grep -qx xfs &&
+        findmnt -n -o SOURCE /srv/app | grep -q app_data &&
+        findmnt -n -o FSTYPE /var/log/app | grep -qx xfs &&
+        findmnt -n -o SOURCE /var/log/app | grep -q app_logs &&
+        findmnt --fstab -n /srv/app >/dev/null && findmnt --fstab -n /var/log/app >/dev/null &&
+        swapon --show=NAME --noheadings | xargs -r -n1 readlink -f | grep -q "$(readlink -f /dev/app_vg/app_swap)" &&
+        grep -q "$(blkid -s UUID -o value /dev/app_vg/app_swap)" /etc/fstab
+      register: mounts
+      changed_when: false
+      failed_when: false
+
+    - name: Grade mounts and swap
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "/srv/app and /var/log/app mounted from their volumes and persistent; swap active and persistent"
+        lab_pass: "{{ mounts.rc == 0 }}"
+
+    - name: Read the cron file
+      ansible.builtin.slurp:
+        src: /etc/cron.d/disk_report
+      register: cron_raw
+      failed_when: false
+
+    - name: Grade the cron job
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "/etc/cron.d/disk_report runs the report as devops every 15 minutes, 08-17, Mon-Fri"
+        lab_pass: >-
+          {{ (cron_raw.content | default('') | b64decode) is search(
+             '(?m)^\*/15\s+8-17\s+\*\s+\*\s+1-5\s+devops\s+df -h /srv/app >> /home/devops/disk_report.log\s*$') }}
+
+    - name: Query the bridge
+      ansible.builtin.shell: |
+        nmcli -g ipv4.addresses connection show labbr0
+        nmcli -g connection.autoconnect connection show labbr0
+        ip -4 -o addr show labbr0 | awk '{print $4}'
+      register: bridge
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the bridge
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "labbr0 has 192.168.251.11/24 persistently and now"
+        lab_pass: "{{ bridge.stdout_lines == ['192.168.251.11/24', 'yes', '192.168.251.11/24'] }}"

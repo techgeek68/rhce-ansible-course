@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+{% for site in team_sites %}
+Listen {{ site['port'] }}
+<VirtualHost *:{{ site['port'] }}>
+    ServerName {{ ansible_facts['fqdn'] }}
+    DocumentRoot /srv/sites/{{ site['name'] }}
+    <Directory /srv/sites/{{ site['name'] }}>
+        Require all granted
+    </Directory>
+</VirtualHost>
+{% endfor %}

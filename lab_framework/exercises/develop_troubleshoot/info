@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: fix YAML, lint, runtime, and connection faults"
+HOSTS="workstation servera serverb serverc"

@@ -1,0 +1,53 @@
+---
+- name: Return the lab hosts to a clean state
+  hosts: servera,serverb,serverc
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove lab files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/node-profile.conf
+        - /etc/profile.d/lab_env.sh
+        - /etc/issue.net
+        - /var/tmp/labcache
+
+    - name: Restore the default /etc/issue
+      ansible.builtin.copy:
+        content: "\\S\nKernel \\r on an \\m\n\n"
+        dest: /etc/issue
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restore the default /etc/issue.net
+      ansible.builtin.copy:
+        content: "\\S\nKernel \\r on an \\m\n"
+        dest: /etc/issue.net
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restore the default Banner line
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Banner'
+        line: '#Banner none'
+
+    - name: Remove sshd_config backups
+      ansible.builtin.shell: rm -f /etc/ssh/sshd_config.*~
+      changed_when: false
+
+    - name: Reload sshd
+      ansible.builtin.command: systemctl reload sshd
+      changed_when: false
+
+    - name: Create the cache directory with old and new files
+      ansible.builtin.shell: |
+        mkdir -p /var/tmp/labcache
+        cd /var/tmp/labcache
+        touch -d '10 days ago' old1.tmp old2.tmp keep.log
+        touch new1.tmp
+      changed_when: true

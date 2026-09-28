@@ -1,0 +1,7 @@
+---
+- name: First contact with a managed host
+  hosts: servera.lab.example.com
+  tasks:
+    - name: Report success
+      ansible.builtin.debug:
+        msg: "Ansible reached the host"

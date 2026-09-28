@@ -1,0 +1,48 @@
+---
+- name: Web service on the application servers
+  hosts: servera.lab.example.com,serverb.lab.example.com,serverc.lab.example.com,serverd.lab.example.com
+  become: true
+  tasks:
+    - name: Install httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Start and enable httpd
+      ansible.builtin.systemd_service:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: Status directory exists
+      ansible.builtin.file:
+        path: /var/www/html/status
+        state: directory
+        mode: "0755"
+
+    - name: Status page is published
+      ansible.builtin.copy:
+        content: "{{ inventory_hostname }} is serving\n"
+        dest: /var/www/html/status/index.html
+        mode: "0644"
+
+    - name: Install firewalld
+      ansible.builtin.dnf:
+        name: firewalld
+        state: present
+
+    - name: Start and enable firewalld
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Open http and https
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        permanent: true
+        immediate: true
+        state: enabled
+      loop:
+        - http
+        - https

@@ -1,0 +1,17 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Cron, at, and timer artifacts are removed
+      ansible.builtin.shell: |
+        crontab -r -u devops 2>/dev/null
+        rm -f /etc/cron.d/lab_disk_usage /home/devops/uptime.log /home/devops/disk_usage.log /tmp/lab_at_run
+        command -v atq >/dev/null && for j in $(atq | awk '{print $1}'); do atrm "$j"; done
+        systemctl disable --now lab-report.timer 2>/dev/null
+        rm -f /etc/systemd/system/lab-report.service /etc/systemd/system/lab-report.timer /var/log/lab-report.log
+        systemctl daemon-reload
+        systemctl set-default multi-user.target
+        true
+      changed_when: false

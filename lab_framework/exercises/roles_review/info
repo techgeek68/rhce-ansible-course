@@ -1,0 +1,2 @@
+DESCRIPTION="Chapter 7 lab: own role, Git dependency, collections, system role"
+HOSTS="workstation serverb"

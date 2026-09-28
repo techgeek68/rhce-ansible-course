@@ -1,0 +1,8 @@
+---
+- name: Login banner on the probe host
+  hosts: probes
+  become: true
+  tasks:
+    - name: Add the banner line
+      ansible.builtin.shell:
+        cmd: echo "Monitoring probe. Contact the platform team." >> /etc/motd

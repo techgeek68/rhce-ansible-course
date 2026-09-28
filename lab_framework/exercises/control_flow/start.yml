@@ -1,0 +1,24 @@
+---
+- name: Prepare the control_flow exercise
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Verify the developer services
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Build the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_skeleton.yml"
+      vars:
+        project_dir: /home/student/control_flow
+
+- name: Reset the managed hosts
+  ansible.builtin.import_playbook: reset.yml
+
+- name: Give serverb a different SELinux mode for this exercise
+  hosts: serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Switch serverb to permissive until the exercise finishes
+      ansible.builtin.command: setenforce 0
+      changed_when: true

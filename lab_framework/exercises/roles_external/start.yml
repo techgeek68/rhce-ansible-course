@@ -1,0 +1,43 @@
+---
+- name: Prepare the roles_external exercise
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project_dir: /home/student/roles_external
+  tasks:
+    - name: Verify the developer services
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Build the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_skeleton.yml"
+
+    - name: Package the shell_env role as an archive in the project
+      ansible.builtin.command:
+        cmd: tar -C {{ lab_files }}/roles_src -cf {{ project_dir }}/shell_env.tar labteam.shell_env
+        creates: "{{ project_dir }}/shell_env.tar"
+
+    - name: Publish version 1.0.0 of labteam.motd on Gitea
+      ansible.builtin.include_tasks: "{{ lab_lib }}/gitea_repo.yml"
+      vars:
+        repo_name: labteam.motd
+        repo_src: "{{ lab_files }}/motd_v1"
+        repo_tag: v1.0.0
+
+    - name: Publish version 1.1.0 of labteam.motd on Gitea
+      ansible.builtin.shell: |
+        set -e
+        tmp=$(mktemp -d)
+        auth="Authorization: Basic {{ (gitea_user ~ ':' ~ gitea_password) | b64encode }}"
+        url="{{ gitea_url }}/{{ gitea_user }}/labteam.motd.git"
+        git -c http.extraHeader="$auth" clone -q "$url" "$tmp/repo"
+        cp -a {{ lab_files }}/motd_v2/. "$tmp/repo/"
+        cd "$tmp/repo"
+        git add -A
+        git -c user.name='Lab Setup' -c user.email='lab@lab.example.com' commit -q -m 'Add support contact line'
+        git tag v1.1.0
+        git -c http.extraHeader="$auth" push -q origin main v1.1.0
+        rm -rf "$tmp"
+      changed_when: true
+
+- name: Reset the managed hosts
+  ansible.builtin.import_playbook: reset.yml

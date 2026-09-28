@@ -1,0 +1,24 @@
+---
+- name: Prepare the intro_devenv exercise
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Verify the developer services from 00_lab_setup/02_dev_services.md
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Create the git-repos directory
+      ansible.builtin.file:
+        path: /home/student/git-repos
+        state: directory
+        mode: "0755"
+
+    - name: Remove an earlier clone so the exercise starts from the starter content
+      ansible.builtin.file:
+        path: /home/student/git-repos/intro_devenv
+        state: absent
+
+    - name: Recreate the intro_devenv repository with starter content
+      ansible.builtin.include_tasks: "{{ lab_lib }}/gitea_repo.yml"
+      vars:
+        repo_name: intro_devenv
+        repo_src: "{{ lab_files }}/repo"

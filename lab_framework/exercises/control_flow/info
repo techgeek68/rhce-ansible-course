@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: loops, loop_control, dict2items, conditions"
+HOSTS="workstation servera serverb serverc serverd"

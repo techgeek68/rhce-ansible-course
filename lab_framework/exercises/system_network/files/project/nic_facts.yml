@@ -1,0 +1,17 @@
+---
+- name: Network facts
+  hosts: web
+  tasks:
+    - name: Report interfaces and the default route
+      ansible.builtin.debug:
+        msg:
+          - "Interfaces: {{ ansible_facts['interfaces'] | sort | join(', ') }}"
+          - >-
+            Default route via {{ ansible_facts['default_ipv4']['gateway'] | default('none') }}
+            on {{ ansible_facts['default_ipv4']['interface'] | default('none') }}
+          - "Primary address: {{ ansible_facts['default_ipv4']['address'] | default('none') }}"
+          - "All IPv4: {{ ansible_facts['all_ipv4_addresses'] | join(', ') }}"
+          - >-
+            DNS: {{ ansible_facts['dns']['nameservers'] | default([]) | join(', ') }}
+            search {{ ansible_facts['dns']['search'] | default([]) | join(', ') }}
+          - "FQDN {{ ansible_facts['fqdn'] }}, host name {{ ansible_facts['hostname'] }}, domain {{ ansible_facts['domain'] }}"

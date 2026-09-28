@@ -1,0 +1,33 @@
+---
+- name: Return serverc and serverd to a clean state
+  hosts: serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove exercise files and links
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /srv/latest
+        - /srv/reports
+        - /etc/sysconfig/reports
+
+    - name: Remove the reports group
+      ansible.builtin.group:
+        name: reports
+        state: absent
+
+    - name: Restore the default MaxAuthTries line
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MaxAuthTries'
+        line: '#MaxAuthTries 6'
+
+    - name: Remove sshd_config backups
+      ansible.builtin.shell: rm -f /etc/ssh/sshd_config.*~
+      changed_when: false
+
+    - name: Reload sshd
+      ansible.builtin.command: systemctl reload sshd
+      changed_when: false

@@ -1,0 +1,21 @@
+---
+- name: Verify time settings
+  hosts: web
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Read chrony server lines
+      ansible.builtin.command: grep -E '^(server|pool) ' /etc/chrony.conf
+      register: chrony_servers
+      changed_when: false
+
+    - name: Read the time zone
+      ansible.builtin.command: timedatectl show -p Timezone --value
+      register: tz
+      changed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          - "{{ chrony_servers['stdout_lines'] }}"
+          - "Time zone: {{ tz['stdout'] }}"

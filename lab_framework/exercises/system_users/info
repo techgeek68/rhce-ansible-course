@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: users, groups, keys, sudo, sshd, known_hosts"
+HOSTS="workstation servera serverb"

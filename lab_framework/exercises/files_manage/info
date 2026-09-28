@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: copy, file, lineinfile, blockinfile, stat, find, fetch"
+HOSTS="workstation serverc serverd"

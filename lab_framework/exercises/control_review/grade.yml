@@ -1,0 +1,152 @@
+---
+- name: Grade the project on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/control_review
+    playbook: /home/student/control_review/logging.yml
+  tasks:
+    - name: Read the playbook
+      ansible.builtin.slurp:
+        src: "{{ playbook }}"
+      register: pb_raw
+      failed_when: false
+
+    - name: Keep the playbook text
+      ansible.builtin.set_fact:
+        pb: "{{ pb_raw.content | default('') | b64decode }}"
+
+    - name: Grade the task control keywords
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "logging.yml uses loop, handlers, flush_handlers, block, rescue"
+        lab_pass: >-
+          {{ pb is search('^\s*loop:', multiline=True) and
+             pb is search('^\s*handlers:', multiline=True) and
+             'flush_handlers' in pb and
+             pb is search('^\s*block:', multiline=True) and
+             pb is search('^\s*rescue:', multiline=True) }}
+
+    - name: Grade that values come from the variable file
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "logging.yml loads vars/logging.yml"
+        lab_pass: "{{ 'vars/logging.yml' in pb and 'log_dirs' in pb and 'log_ports' in pb }}"
+
+    - name: Run the playbook in check mode
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-playbook, logging.yml, --check]
+        chdir: "{{ project }}"
+      register: check_run
+      changed_when: false
+      failed_when: false
+
+    - name: Grade idempotency
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "logging.yml reports no changes on a rerun"
+        lab_pass: "{{ check_run.rc == 0 and 'PLAY RECAP' in check_run.stdout and check_run.stdout is not search('changed=[1-9]') }}"
+
+    - name: Run the playbook with an impossible memory requirement
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-playbook, logging.yml, --check, -e, log_min_ram_mb=999999]
+        chdir: "{{ project }}"
+      register: fail_run
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the fail fast check
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Log host check stops with 'does not meet' when RAM is short"
+        lab_pass: "{{ fail_run.rc != 0 and 'does not meet the log server requirements' in fail_run.stdout }}"
+
+- name: Grade the log host
+  hosts: serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Inspect the log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /var/log/remote
+        - /var/log/remote/archive
+      register: dirs
+
+    - name: Grade the log directories
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Both log directories exist, root:root 0750"
+        lab_pass: >-
+          {{ dirs.results | selectattr('stat.exists') | selectattr('stat.isdir') |
+             selectattr('stat.pw_name', 'equalto', 'root') | selectattr('stat.gr_name', 'equalto', 'root') |
+             selectattr('stat.mode', 'equalto', '0750') | list | length == 2 }}
+
+    - name: Look for a listener on 514/tcp
+      ansible.builtin.command: ss -Htln 'sport = :514'
+      register: listener
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the listener
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "rsyslog listens on 514/tcp on serverd"
+        lab_pass: "{{ listener.stdout | trim | length > 0 }}"
+
+    - name: Query the firewall
+      ansible.builtin.command: firewall-cmd --permanent --query-port=514/tcp
+      register: fw
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the firewall
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "514/tcp is permanently open on serverd"
+        lab_pass: "{{ fw.rc == 0 }}"
+
+    - name: Look for each client's test message
+      ansible.builtin.shell: grep -l control_review /var/log/remote/{{ item }}*.log
+      loop:
+        - servera
+        - serverb
+        - serverc
+      register: received
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the received messages
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "serverd stored a control_review message from every client"
+        lab_pass: "{{ received.results | selectattr('rc', 'equalto', 0) | list | length == 3 }}"
+
+- name: Grade the clients
+  hosts: servera,serverb,serverc
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Inspect the forwarding rule
+      ansible.builtin.stat:
+        path: /etc/rsyslog.d/forward.conf
+      register: fwd
+
+    - name: Grade the forwarding rule
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} has the forwarding rule"
+        lab_pass: "{{ fwd.stat.exists }}"
+
+    - name: Query sysstat
+      ansible.builtin.command: rpm -q sysstat
+      register: sysstat
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the memory condition
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} has sysstat only if RAM >= 1400 MiB"
+        lab_pass: "{{ (sysstat.rc == 0) == (ansible_facts['memtotal_mb'] >= 1400) }}"

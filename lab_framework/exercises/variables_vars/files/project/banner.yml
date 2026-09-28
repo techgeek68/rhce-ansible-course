@@ -1,0 +1,13 @@
+---
+- name: Login banner shows where its value came from
+  hosts: all
+  tasks:
+    - name: Banner file holds the winning value
+      ansible.builtin.copy:
+        content: "{{ motd_banner }}\n"
+        dest: /etc/motd
+        mode: "0644"
+
+    - name: Report the winning value
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} uses: {{ motd_banner }}"

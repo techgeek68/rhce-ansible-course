@@ -1,0 +1,12 @@
+---
+- name: Short hardware and network report
+  hosts: web
+  become: false
+  tasks:
+    - name: One line summary per host
+      ansible.builtin.debug:
+        msg: >-
+          {{ ansible_facts['fqdn'] }} runs {{ ansible_facts['distribution'] }}
+          {{ ansible_facts['distribution_version'] }} on {{ ansible_facts['processor_vcpus'] }} vCPU
+          with {{ ansible_facts['memtotal_mb'] }} MiB RAM at
+          {{ ansible_facts['default_ipv4']['address'] }}

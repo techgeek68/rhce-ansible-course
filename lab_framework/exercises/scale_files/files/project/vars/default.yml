@@ -1,0 +1,4 @@
+---
+# Used when no distribution specific file exists
+web_pkg: httpd
+web_svc: httpd

@@ -1,0 +1,18 @@
+---
+- name: Prepare the system_storage exercise
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project_dir: /home/student/system_storage
+  tasks:
+    - name: Verify the developer services
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Build the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_skeleton.yml"
+
+    - name: Provide the RHEL system roles collection in the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_system_roles.yml"
+
+- name: Reset the managed hosts
+  ansible.builtin.import_playbook: reset.yml

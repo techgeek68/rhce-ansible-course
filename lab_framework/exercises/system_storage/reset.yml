@@ -1,0 +1,22 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Lab storage is removed
+      ansible.builtin.include_tasks: "{{ lab_lib }}/reset_storage.yml"
+      vars:
+        reset_vgs:
+          - data_vg
+        reset_mounts:
+          - /mnt/scratch
+
+    - name: Mount points are removed
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /srv/web
+        - /srv/logs
+        - /mnt/scratch

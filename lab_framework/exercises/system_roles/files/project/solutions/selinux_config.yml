@@ -1,0 +1,23 @@
+---
+- name: SELinux settings from the system role
+  hosts: web
+  become: true
+  tasks:
+    - name: SELinux role is applied, with a reboot only if the role requires one
+      block:
+        - name: Apply the selinux role
+          ansible.builtin.include_role:
+            name: redhat.rhel_system_roles.selinux
+
+      rescue:
+        - name: Fail for any reason other than a pending reboot
+          ansible.builtin.fail:
+            msg: The selinux role failed for a reason other than a required reboot
+          when: not (selinux_reboot_required | default(false))
+
+        - name: Reboot to complete the SELinux change
+          ansible.builtin.reboot:
+
+        - name: Apply the selinux role again after the reboot
+          ansible.builtin.include_role:
+            name: redhat.rhel_system_roles.selinux

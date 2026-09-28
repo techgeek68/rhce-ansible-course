@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: import_tasks, include_tasks, include_vars, import_playbook"
+HOSTS="workstation servera serverb"

@@ -1,0 +1,50 @@
+---
+- name: Return the web tier to a clean state
+  hosts: serverb,serverc
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+
+    - name: Remove the home page
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Close http in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=http
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false
+
+- name: Return the database host to a clean state
+  hosts: serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop MariaDB if it is running
+      ansible.builtin.command: systemctl disable --now mariadb
+      changed_when: false
+      failed_when: false
+
+    - name: Remove mariadb-server
+      ansible.builtin.dnf:
+        name: mariadb-server
+        state: absent
+
+    - name: Close mysql in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=mysql
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false

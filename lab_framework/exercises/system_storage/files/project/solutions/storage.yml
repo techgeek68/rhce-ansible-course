@@ -1,0 +1,8 @@
+---
+- name: Storage from the system role
+  hosts: web
+  become: true
+  tasks:
+    - name: Volume group, logical volumes, file systems, mounts, and swap
+      ansible.builtin.include_role:
+        name: redhat.rhel_system_roles.storage

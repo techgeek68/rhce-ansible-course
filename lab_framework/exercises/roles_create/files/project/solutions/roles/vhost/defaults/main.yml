@@ -1,0 +1,5 @@
+---
+# Values callers are expected to change
+vhost_port: 80
+vhost_title: Welcome
+vhost_root: /var/www/sites

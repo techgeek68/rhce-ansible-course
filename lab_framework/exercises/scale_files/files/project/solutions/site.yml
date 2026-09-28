@@ -1,0 +1,45 @@
+---
+- name: Web tier assembled from task files
+  hosts: web
+  vars:
+    web_profile: basic
+  tasks:
+    - name: Platform specific variables are loaded
+      ansible.builtin.include_vars:
+        file: "{{ lookup('ansible.builtin.first_found', platform_files) }}"
+      vars:
+        platform_files:
+          files:
+            - "{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+            - "{{ ansible_facts['distribution'] }}.yml"
+            - default.yml
+          paths:
+            - vars
+
+    - name: Packages are installed
+      ansible.builtin.import_tasks: tasks/packages.yml
+      vars:
+        pkgs:
+          - "{{ web_pkg }}"
+          - firewalld
+
+    - name: Services run and start at boot
+      ansible.builtin.include_tasks: tasks/service.yml
+      loop:
+        - "{{ web_svc }}"
+        - firewalld
+      loop_control:
+        loop_var: svc_name
+
+    - name: Firewall rules are in place
+      ansible.builtin.import_tasks: tasks/firewall.yml
+      vars:
+        fw_services:
+          - http
+          - https
+
+    - name: Profile specific content is deployed
+      ansible.builtin.include_tasks: "tasks/profiles/{{ web_profile }}.yml"
+
+- name: Web tier answers
+  ansible.builtin.import_playbook: plays/verify.yml

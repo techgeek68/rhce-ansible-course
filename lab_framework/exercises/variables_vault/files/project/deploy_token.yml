@@ -1,0 +1,20 @@
+---
+- name: Reporting token is installed on every host
+  hosts: all
+  tasks:
+    - name: Token directory exists
+      ansible.builtin.file:
+        path: /etc/reporting
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Token file is decrypted on the host
+      ansible.builtin.copy:
+        src: files/app_token.conf
+        dest: /etc/reporting/token.conf
+        owner: root
+        group: root
+        mode: "0600"
+        decrypt: true

@@ -1,0 +1,2 @@
+DESCRIPTION="Chapter 2 lab: inventory, lint, multi play, idempotency"
+HOSTS="workstation servera serverb serverc serverd"

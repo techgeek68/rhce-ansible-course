@@ -1,0 +1,8 @@
+---
+- name: Clean up after develop_inventory
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Nothing to remove on managed hosts; the project stays for review
+      ansible.builtin.debug:
+        msg: "Project kept in /home/student/develop_inventory"

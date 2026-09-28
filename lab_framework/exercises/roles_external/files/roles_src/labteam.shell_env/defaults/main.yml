@@ -1,0 +1,3 @@
+---
+shell_env_prompt: '[\u@\h \W]\$ '
+shell_env_history_size: 5000

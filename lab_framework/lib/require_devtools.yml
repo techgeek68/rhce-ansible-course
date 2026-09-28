@@ -1,0 +1,39 @@
+---
+# Verifies that the Chapter 1 developer services exist before an exercise starts.
+- name: Confirm VS Code, podman, git, and ansible-navigator are installed on workstation
+  ansible.builtin.command: "bash -lc 'command -v {{ item }}'"
+  loop:
+    - code
+    - podman
+    - git
+    - ansible-navigator
+  changed_when: false
+
+- name: Confirm the lab registry holds the execution environment image
+  ansible.builtin.uri:
+    url: "http://{{ lab_registry }}/v2/ansible-automation-platform-26/ee-supported-rhel9/tags/list"
+    status_code: 200
+
+- name: Confirm the lab registry holds the development tools image
+  ansible.builtin.uri:
+    url: "http://{{ lab_registry }}/v2/ansible-automation-platform-26/ansible-dev-tools-rhel9/tags/list"
+    status_code: 200
+
+- name: Confirm the Gitea server answers
+  ansible.builtin.uri:
+    url: "{{ gitea_url }}/api/v1/version"
+    status_code: 200
+
+- name: Confirm ansible.posix is published on materials.example.com
+  ansible.builtin.uri:
+    url: http://materials.example.com/collections/
+    return_content: true
+  register: materials_check
+  failed_when: "'ansible-posix-' not in materials_check.content"
+
+- name: Confirm community.general is published on materials.example.com
+  ansible.builtin.uri:
+    url: http://materials.example.com/collections/
+    return_content: true
+  register: materials_cg
+  failed_when: "'community-general-' not in materials_cg.content"

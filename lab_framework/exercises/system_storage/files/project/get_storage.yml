@@ -1,0 +1,19 @@
+---
+- name: Show the storage configuration
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Collect LVM, mount, swap, and fstab state
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo '== lvs'; lvs -o vg_name,lv_name,lv_size --units m 2>/dev/null
+        echo '== mounts'; findmnt -rn -o TARGET,SOURCE,FSTYPE,SIZE -t xfs,tmpfs | grep -E '/srv|/mnt/scratch' || true
+        echo '== swap'; swapon --show=NAME,SIZE --noheadings
+        echo '== fstab'; grep -vE '^#|^$' /etc/fstab
+      register: storage_state
+      changed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        var: storage_state['stdout_lines']

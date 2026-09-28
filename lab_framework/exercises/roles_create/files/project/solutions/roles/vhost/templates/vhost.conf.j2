@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+{% if vhost_port | int != 80 %}
+Listen {{ vhost_port }}
+{% endif %}
+<VirtualHost *:{{ vhost_port }}>
+    ServerName {{ ansible_facts['fqdn'] }}
+    DocumentRoot {{ vhost_root }}/{{ vhost_name }}
+    ErrorLog logs/{{ vhost_name }}-error.log
+    CustomLog logs/{{ vhost_name }}-access.log combined
+    <Directory {{ vhost_root }}/{{ vhost_name }}>
+        Require all granted
+    </Directory>
+</VirtualHost>

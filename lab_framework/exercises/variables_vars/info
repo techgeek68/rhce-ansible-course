@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: play vars, group_vars, host_vars, precedence"
+HOSTS="workstation servera serverb serverc serverd"

@@ -1,0 +1,66 @@
+---
+# Recreates a repository on the lab Gitea server (utility:3000).
+# Required variable: repo_name
+# Optional variable: repo_src (directory whose contents become the first commit on main)
+# Optional variable: repo_tag (tag created on that first commit)
+- name: "Delete repository {{ repo_name }} if it exists"
+  ansible.builtin.uri:
+    url: "{{ gitea_url }}/api/v1/repos/{{ gitea_user }}/{{ repo_name }}"
+    method: DELETE
+    url_username: "{{ gitea_user }}"
+    url_password: "{{ gitea_password }}"
+    force_basic_auth: true
+    status_code: [204, 404]
+
+- name: "Create empty repository {{ repo_name }}"
+  ansible.builtin.uri:
+    url: "{{ gitea_url }}/api/v1/user/repos"
+    method: POST
+    url_username: "{{ gitea_user }}"
+    url_password: "{{ gitea_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      name: "{{ repo_name }}"
+      private: false
+      auto_init: false
+      default_branch: main
+    status_code: 201
+
+- name: Publish starter content
+  when: repo_src is defined
+  block:
+    - name: Create a temporary working copy
+      ansible.builtin.tempfile:
+        state: directory
+      register: repo_tmp
+
+    - name: Copy starter content into the working copy
+      ansible.builtin.copy:
+        src: "{{ repo_src }}/"
+        dest: "{{ repo_tmp.path }}/"
+        mode: preserve
+
+    - name: Commit and push starter content
+      ansible.builtin.shell: |
+        set -e
+        git init -q -b main
+        git add -A
+        git -c user.name='Lab Setup' -c user.email='lab@lab.example.com' commit -q -m 'Starter content'
+        git -c http.extraHeader="Authorization: Basic {{ (gitea_user ~ ':' ~ gitea_password) | b64encode }}" \
+            push -q "{{ gitea_url }}/{{ gitea_user }}/{{ repo_name }}.git" main
+        if [ -n "{{ repo_tag | default('') }}" ]; then
+          git tag "{{ repo_tag | default('') }}"
+          git -c http.extraHeader="Authorization: Basic {{ (gitea_user ~ ':' ~ gitea_password) | b64encode }}" \
+              push -q "{{ gitea_url }}/{{ gitea_user }}/{{ repo_name }}.git" "{{ repo_tag | default('') }}"
+        fi
+      args:
+        chdir: "{{ repo_tmp.path }}"
+      changed_when: true
+
+  always:
+    - name: Remove the temporary working copy
+      ansible.builtin.file:
+        path: "{{ repo_tmp.path }}"
+        state: absent
+      when: repo_tmp.path is defined

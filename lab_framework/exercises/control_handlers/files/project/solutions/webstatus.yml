@@ -1,0 +1,74 @@
+---
+- name: Web server exposes a local status page
+  hosts: web
+  vars:
+    web_pkgs:
+      - httpd
+      - firewalld
+  tasks:
+    - name: Web packages are installed
+      ansible.builtin.dnf:
+        name: "{{ web_pkgs }}"
+        state: present
+      notify: Restart httpd
+
+    - name: Status page configuration is installed
+      ansible.builtin.copy:
+        src: files/status.conf
+        dest: /etc/httpd/conf.d/status.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Web config changed
+
+    - name: Home page is installed
+      ansible.builtin.copy:
+        src: files/index.html
+        dest: /var/www/html/index.html
+        mode: "0644"
+
+    - name: Services run and start at boot
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - httpd
+        - firewalld
+
+    - name: Firewall allows http now and after reboot
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        immediate: true
+        state: enabled
+
+    - name: Pending handlers run now
+      ansible.builtin.meta: flush_handlers
+
+    - name: Status page answers locally
+      ansible.builtin.uri:
+        url: http://localhost/server-status?auto
+        return_content: true
+      register: status_page
+
+    - name: Show the worker summary
+      ansible.builtin.debug:
+        msg: "{{ status_page['content'] | regex_search('BusyWorkers: [0-9]+') }}"
+
+  handlers:
+    - name: Check httpd configuration
+      ansible.builtin.command: apachectl configtest
+      changed_when: false
+      listen: Web config changed
+
+    - name: Reload httpd
+      ansible.builtin.systemd_service:
+        name: httpd
+        state: reloaded
+      listen: Web config changed
+
+    - name: Restart httpd
+      ansible.builtin.systemd_service:
+        name: httpd
+        state: restarted

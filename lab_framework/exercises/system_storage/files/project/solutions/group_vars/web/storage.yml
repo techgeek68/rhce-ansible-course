@@ -1,0 +1,23 @@
+---
+# redhat.rhel_system_roles.storage
+# Replace sdb with the spare disk that disk_list.yml reports.
+storage_pools:
+  - name: data_vg
+    type: lvm
+    disks:
+      - sdb
+    volumes:
+      - name: web_lv
+        size: 512m
+        fs_type: xfs
+        mount_point: /srv/web
+        state: present
+      - name: logs_lv
+        size: 1g
+        fs_type: xfs
+        mount_point: /srv/logs
+        state: present
+      - name: swap_lv
+        size: 256m
+        fs_type: swap
+        state: present

@@ -1,0 +1,19 @@
+---
+- name: Return the managed hosts to a clean state
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove the stage logins
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop:
+        - dev_ops1
+        - prod_ops1
+
+    - name: Remove the reporting token
+      ansible.builtin.file:
+        path: /etc/reporting
+        state: absent

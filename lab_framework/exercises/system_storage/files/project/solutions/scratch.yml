@@ -1,0 +1,12 @@
+---
+- name: Mount a file system with the mount module
+  hosts: web
+  become: true
+  tasks:
+    - name: Scratch space is mounted now and at boot
+      ansible.posix.mount:
+        path: /mnt/scratch
+        src: tmpfs
+        fstype: tmpfs
+        opts: size=64m,mode=1777
+        state: mounted

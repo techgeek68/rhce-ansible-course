@@ -1,0 +1,28 @@
+---
+- name: Clean up after intro_configure
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Read the first line of ~/.ansible.cfg if it exists
+      ansible.builtin.command: head -n1 /home/student/.ansible.cfg
+      register: home_cfg
+      changed_when: false
+      failed_when: false
+
+    - name: Remove the precedence experiment file so later exercises are not affected
+      ansible.builtin.file:
+        path: /home/student/.ansible.cfg
+        state: absent
+      when: "'intro_configure experiment' in home_cfg.stdout"
+
+    - name: Find playbook artifacts left in the project
+      ansible.builtin.find:
+        paths: /home/student/intro_configure
+        patterns: "*-artifact-*.json"
+      register: artifacts
+
+    - name: Remove playbook artifacts
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ artifacts.files }}"

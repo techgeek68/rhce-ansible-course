@@ -1,0 +1,8 @@
+---
+- name: labteam.shell_env
+  src: shell_env.tar
+
+- name: labteam.motd
+  src: http://utility.lab.example.com:3000/student/labteam.motd.git
+  scm: git
+  version: v1.0.0

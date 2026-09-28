@@ -1,0 +1,11 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Lab bridge profile is removed
+      ansible.builtin.shell: |
+        nmcli connection delete labbr0 2>/dev/null
+        true
+      changed_when: false

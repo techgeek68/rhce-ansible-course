@@ -1,0 +1,5 @@
+[intranet]
+servera.lab.example.com
+
+[probes]
+serverb.lab.example.com

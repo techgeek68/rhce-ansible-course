@@ -1,0 +1,191 @@
+---
+- name: Grade the project on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/develop_review
+    welcome: App tier ready
+  tasks:
+    - name: Parse the student inventory
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-inventory, -i, inventory, --list]
+        chdir: "{{ project }}"
+      register: inv_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Keep the parsed inventory
+      ansible.builtin.set_fact:
+        inv: "{{ inv_raw.stdout | from_json if inv_raw.rc == 0 else {} }}"
+
+    - name: Grade the web group
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Group web holds serverb and serverc (FQDN)"
+        lab_pass: "{{ (inv.web.hosts | default([]) | sort) == ['serverb.lab.example.com', 'serverc.lab.example.com'] }}"
+
+    - name: Grade the db group
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Group db holds only serverd"
+        lab_pass: "{{ inv.db.hosts | default([]) == ['serverd.lab.example.com'] }}"
+
+    - name: Grade the probes group
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Group probes holds only servera"
+        lab_pass: "{{ inv.probes.hosts | default([]) == ['servera.lab.example.com'] }}"
+
+    - name: Grade the nested app group
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Group app has children web and db"
+        lab_pass: "{{ (inv.app.children | default([]) | sort) == ['db', 'web'] }}"
+
+    - name: Grade the group variable
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "http_welcome is set for the web group"
+        lab_pass: >-
+          {{ (inv._meta.hostvars | default({}))['serverb.lab.example.com'].http_welcome | default('') == welcome and
+             (inv._meta.hostvars | default({}))['serverc.lab.example.com'].http_welcome | default('') == welcome and
+             'http_welcome' not in ((inv._meta.hostvars | default({}))['serverd.lab.example.com'] | default({})) }}
+
+    - name: Lint database.yml
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, bash, -lc, "ansible-lint --offline -q database.yml"]
+        chdir: "{{ project }}"
+      register: lint_db
+      changed_when: false
+      failed_when: false
+
+    - name: Grade database.yml lint
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "database.yml passes ansible-lint"
+        lab_pass: "{{ lint_db.rc == 0 }}"
+
+    - name: Lint webserver.yml
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, bash, -lc, "test -f webserver.yml && ansible-lint --offline -q webserver.yml"]
+        chdir: "{{ project }}"
+      register: lint_web
+      changed_when: false
+      failed_when: false
+
+    - name: Grade webserver.yml lint
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "webserver.yml passes ansible-lint"
+        lab_pass: "{{ lint_web.rc == 0 }}"
+
+    - name: Run webserver.yml in check mode
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-playbook, webserver.yml, --check]
+        chdir: "{{ project }}"
+      register: check_run
+      changed_when: false
+      failed_when: false
+
+    - name: Grade idempotency
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "webserver.yml reports no changes on a rerun"
+        lab_pass: "{{ check_run.rc == 0 and 'PLAY RECAP' in check_run.stdout and check_run.stdout is not search('changed=[1-9]') }}"
+
+    - name: Read the Ansible log
+      ansible.builtin.slurp:
+        src: "{{ project }}/ansible.log"
+      register: log_file
+      failed_when: false
+
+    - name: Grade logging
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Playbook runs are logged to ansible.log"
+        lab_pass: "{{ 'PLAY RECAP' in (log_file.content | default('') | b64decode) }}"
+
+- name: Grade the database host
+  hosts: serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Query MariaDB state
+      ansible.builtin.command: systemctl is-active mariadb
+      register: db_active
+      changed_when: false
+      failed_when: false
+
+    - name: Query MariaDB boot setting
+      ansible.builtin.command: systemctl is-enabled mariadb
+      register: db_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Grade MariaDB service
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "MariaDB runs and starts at boot on serverd"
+        lab_pass: "{{ db_active.stdout == 'active' and db_enabled.stdout == 'enabled' }}"
+
+    - name: Query the firewall
+      ansible.builtin.command: firewall-cmd --permanent --query-service=mysql
+      register: db_fw
+      changed_when: false
+      failed_when: false
+
+    - name: Grade database firewall rule
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "mysql is permanently allowed on serverd"
+        lab_pass: "{{ db_fw.rc == 0 }}"
+
+- name: Grade the web tier
+  hosts: serverb,serverc
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Query httpd state
+      ansible.builtin.command: systemctl is-active httpd
+      register: web_active
+      changed_when: false
+      failed_when: false
+
+    - name: Query httpd boot setting
+      ansible.builtin.command: systemctl is-enabled httpd
+      register: web_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Grade httpd service
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "httpd runs and starts at boot on {{ inventory_hostname }}"
+        lab_pass: "{{ web_active.stdout == 'active' and web_enabled.stdout == 'enabled' }}"
+
+    - name: Query the firewall
+      ansible.builtin.command: firewall-cmd --permanent --query-service=http
+      register: web_fw
+      changed_when: false
+      failed_when: false
+
+    - name: Grade web firewall rule
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "http is permanently allowed on {{ inventory_hostname }}"
+        lab_pass: "{{ web_fw.rc == 0 }}"
+
+    - name: Fetch the home page from workstation
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}.lab.example.com/"
+        return_content: true
+      register: page
+      delegate_to: workstation
+      become: false
+      failed_when: false
+
+    - name: Grade the home page
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} page shows the welcome line"
+        lab_pass: "{{ (page.content | default('')) | trim == 'App tier ready on ' ~ inventory_hostname ~ '.lab.example.com' }}"

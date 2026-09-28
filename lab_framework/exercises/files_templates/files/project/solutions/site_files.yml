@@ -1,0 +1,63 @@
+---
+- name: Host specific files from templates
+  hosts: all
+  vars:
+    support:
+      web: web-team@lab.example.com
+      db: dba-team@lab.example.com
+    app_name: ReportService
+    app_admins:
+      - ana
+      - raj
+    app_limits:
+      timeout: 30
+      max_clients: 50
+  tasks:
+    - name: Login banner describes the host
+      ansible.builtin.template:
+        src: motd.j2
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Configuration directory exists
+      ansible.builtin.file:
+        path: /etc/lab
+        state: directory
+        mode: "0755"
+
+    - name: Peer list names every lab host
+      ansible.builtin.template:
+        src: peers.j2
+        dest: /etc/lab/peers.conf
+        mode: "0644"
+
+    - name: Application settings are rendered with filters
+      ansible.builtin.template:
+        src: app.ini.j2
+        dest: /etc/lab/app.ini
+        mode: "0644"
+
+    - name: Settings are also published as YAML
+      ansible.builtin.copy:
+        content: "{{ {'name': app_name, 'admins': app_admins, 'limits': app_limits} | to_nice_yaml }}"
+        dest: /etc/lab/app_settings.yml
+        mode: "0644"
+
+- name: Parse command output with from_json
+  hosts: serverc.lab.example.com
+  become: false
+  gather_facts: false
+  tasks:
+    - name: List whole disks as JSON
+      ansible.builtin.command: lsblk -J -d -o NAME,SIZE,TYPE
+      register: lsblk_out
+      changed_when: false
+
+    - name: Show disk names and sizes
+      ansible.builtin.debug:
+        msg: "{{ item['name'] }} is {{ item['size'] }}"
+      loop: "{{ (lsblk_out['stdout'] | from_json)['blockdevices'] | selectattr('type', 'equalto', 'disk') | list }}"
+      loop_control:
+        label: "{{ item['name'] }}"

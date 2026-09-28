@@ -1,0 +1,47 @@
+---
+- name: Prepare the working directory on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    workdir: "/home/student/{{ lab_exercise }}"
+  tasks:
+    - name: Create the exercise directory
+      ansible.builtin.file:
+        path: "{{ workdir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Provide ansible.cfg and inventory without overwriting student edits
+      ansible.builtin.copy:
+        src: "{{ lab_files }}/{{ item }}"
+        dest: "{{ workdir }}/{{ item }}"
+        mode: "0644"
+        force: false
+      loop:
+        - ansible.cfg
+        - inventory
+
+- name: Put servera into a known starting state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove httpd left over from an earlier attempt
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+
+    - name: Remove leftover web content
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Close the http service in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=http
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false

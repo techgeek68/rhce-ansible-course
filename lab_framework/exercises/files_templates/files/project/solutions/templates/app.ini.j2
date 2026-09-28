@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+[service]
+name = {{ app_name | lower }}
+listen_port = {{ app_port | default(8080) }}
+debug = {{ app_debug | default(false) | bool | ternary('on', 'off') }}
+admins = {{ app_admins | join(',') }}
+
+[limits]
+{% for key, value in app_limits | dictsort %}
+{{ key }} = {{ value }}
+{% endfor %}

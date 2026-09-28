@@ -1,0 +1,21 @@
+---
+# Copies the redhat.rhel_system_roles collection from the rhel-system-roles RPM on
+# workstation into the project, so every execution environment and ansible-playbook
+# find the same version.
+# Required variable: project_dir
+- name: The rhel-system-roles package is installed on workstation
+  ansible.builtin.command: rpm -q rhel-system-roles
+  changed_when: false
+
+- name: Collection directory exists in the project
+  ansible.builtin.file:
+    path: "{{ project_dir }}/collections/ansible_collections/redhat"
+    state: directory
+    mode: "0755"
+
+- name: RHEL system roles collection is copied into the project
+  ansible.builtin.command:
+    cmd: >-
+      cp -a /usr/share/ansible/collections/ansible_collections/redhat/rhel_system_roles
+      {{ project_dir }}/collections/ansible_collections/redhat/
+    creates: "{{ project_dir }}/collections/ansible_collections/redhat/rhel_system_roles"

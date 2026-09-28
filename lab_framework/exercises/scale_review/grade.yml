@@ -1,0 +1,159 @@
+---
+- name: Grade the project on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/scale_review
+  tasks:
+    - name: Read the project files
+      ansible.builtin.slurp:
+        src: "{{ project }}/{{ item }}"
+      loop:
+        - site.yml
+        - tasks/web_tasks.yml
+        - tasks/firewall_tasks.yml
+        - tasks/install_and_enable.yml
+      register: files_raw
+      failed_when: false
+
+    - name: Parse the project files
+      ansible.builtin.set_fact:
+        site: "{{ (files_raw.results[0].content | default('') | b64decode | from_yaml) or [] }}"
+        web_tasks: "{{ (files_raw.results[1].content | default('') | b64decode | from_yaml) or [] }}"
+        fw_tasks: "{{ (files_raw.results[2].content | default('') | b64decode | from_yaml) or [] }}"
+        ie_text: "{{ files_raw.results[3].content | default('') | b64decode }}"
+
+    - name: Summarize the structure
+      ansible.builtin.set_fact:
+        play1_hosts: "{{ (site[0] | default({})).hosts | default('') }}"
+        play1_imports: >-
+          {%- set ns = namespace(out=[]) -%}
+          {%- for t in (site[0] | default({})).tasks | default([]) -%}
+          {%- set ns.out = ns.out + [t.get('ansible.builtin.import_tasks', t.get('import_tasks', 'OTHER'))] -%}
+          {%- endfor -%}
+          {{ ns.out | join(',') }}
+        site_imports: >-
+          {%- set ns = namespace(out=[]) -%}
+          {%- for play in site -%}
+          {%- set ns.out = ns.out + [play.get('ansible.builtin.import_playbook', play.get('import_playbook', 'PLAY'))] -%}
+          {%- endfor -%}
+          {{ ns.out | join(',') }}
+        shared_imports: >-
+          {%- set ns = namespace(out=[]) -%}
+          {%- for t in web_tasks + fw_tasks -%}
+          {%- if 'install_and_enable.yml' in t.get('ansible.builtin.import_tasks', t.get('import_tasks', '')) -%}
+          {%- set ns.out = ns.out + [(t.get('vars', {}).get('package', '')) ~ '/' ~ (t.get('vars', {}).get('service', ''))] -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ ns.out | join(',') }}
+        leftover_modules: >-
+          {%- set ns = namespace(n=0) -%}
+          {%- for t in web_tasks + fw_tasks -%}
+          {%- for k in t.keys() -%}
+          {%- if k in ['ansible.builtin.dnf', 'dnf', 'ansible.builtin.systemd_service', 'systemd_service', 'ansible.builtin.service', 'service'] -%}
+          {%- set ns.n = ns.n + 1 -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {{ ns.n }}
+
+    - name: List hosts of the first play
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-playbook, site.yml, --list-hosts]
+        chdir: "{{ project }}"
+      register: listed
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the host pattern
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Play 1 uses one wildcard pattern selecting exactly servera..serverd"
+        lab_pass: >-
+          {{ '*' in play1_hosts and ',' not in play1_hosts and ':' not in play1_hosts and
+             listed.stdout is search('hosts \(4\)') and
+             listed.stdout is search('servera.lab.example.com') and listed.stdout is search('serverd.lab.example.com') and
+             listed.stdout is not search('utility|server9') }}
+
+    - name: Grade site.yml imports
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Play 1 only imports tasks/web_tasks.yml and tasks/firewall_tasks.yml"
+        lab_pass: >-
+          {{ play1_imports == 'tasks/web_tasks.yml,tasks/firewall_tasks.yml' }}
+
+    - name: Grade the verification play
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "site.yml imports plays/check.yml after the configuration play"
+        lab_pass: "{{ site_imports == 'PLAY,plays/check.yml' }}"
+
+    - name: Grade the parameterized imports
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "web_tasks.yml and firewall_tasks.yml import install_and_enable.yml with package and service"
+        lab_pass: "{{ shared_imports == 'httpd/httpd,firewalld/firewalld' }}"
+
+    - name: Grade the shared tasks file
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "install_and_enable.yml uses the package and service variables"
+        lab_pass: >-
+          {{ ie_text is search('dnf') and ie_text is search('\{\{\s*package\s*\}\}') and
+             ie_text is search('systemd_service|service:') and ie_text is search('\{\{\s*service\s*\}\}') and
+             ie_text is not search('httpd|firewalld') }}
+
+    - name: Grade that no module work is left in the tasks files
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "web_tasks.yml and firewall_tasks.yml no longer install or start anything themselves"
+        lab_pass: "{{ leftover_modules | int == 0 and shared_imports | length > 0 }}"
+
+    - name: Run the playbook in check mode
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-playbook, site.yml, --check]
+        chdir: "{{ project }}"
+      register: check_run
+      changed_when: false
+      failed_when: false
+
+    - name: Grade idempotency
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "site.yml runs cleanly and reports no changes on a rerun"
+        lab_pass: "{{ check_run.rc == 0 and 'PLAY RECAP' in check_run.stdout and check_run.stdout is not search('changed=[1-9]') }}"
+
+- name: Grade the application servers
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Query services and firewall
+      ansible.builtin.shell: |
+        systemctl is-active httpd && systemctl is-enabled httpd &&
+        systemctl is-active firewalld &&
+        firewall-cmd --permanent --query-service=http && firewall-cmd --permanent --query-service=https
+      register: state
+      changed_when: false
+      failed_when: false
+
+    - name: Grade services and firewall
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} runs httpd and firewalld with http and https open"
+        lab_pass: "{{ state.rc == 0 }}"
+
+    - name: Fetch the status page from workstation
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}.lab.example.com/status/"
+        return_content: true
+      register: page
+      delegate_to: workstation
+      become: false
+      failed_when: false
+
+    - name: Grade the status page
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} status page is correct"
+        lab_pass: "{{ (page.content | default('') | trim) == inventory_hostname ~ '.lab.example.com is serving' }}"

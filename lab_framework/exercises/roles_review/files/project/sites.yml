@@ -1,0 +1,8 @@
+---
+team_sites:
+  - name: alpha
+    port: 8181
+    title: Team Alpha development site
+  - name: bravo
+    port: 8182
+    title: Team Bravo development site

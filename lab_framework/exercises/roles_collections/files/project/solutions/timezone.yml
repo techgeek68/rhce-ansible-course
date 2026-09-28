@@ -1,0 +1,7 @@
+---
+- name: Time zone from a community collection module
+  hosts: web
+  tasks:
+    - name: Time zone is set
+      community.general.timezone:
+        name: America/New_York

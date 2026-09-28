@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: facts, custom facts, set_fact, magic variables"
+HOSTS="workstation servera serverb"

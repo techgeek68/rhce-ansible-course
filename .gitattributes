@@ -1,0 +1,12 @@
+# Scripts must keep Unix line endings even when edited on Windows
+*.sh    text eol=lf
+*.py    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.j2    text eol=lf
+*.cfg   text eol=lf
+*.spec  text eol=lf
+*.md    text eol=lf
+lab_framework/bin/lab         text eol=lf
+lab_framework/completion/lab  text eol=lf
+lab_framework/inventory       text eol=lf

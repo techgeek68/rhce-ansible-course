@@ -1,0 +1,36 @@
+---
+all:
+  children:
+    web:
+      hosts:
+        server[a:c].lab.example.com:
+    db:
+      hosts:
+        serverd.lab.example.com:
+          db_engine: mariadb
+    americas:
+      children:
+        nyc:
+          hosts:
+            servera.lab.example.com:
+            serverb.lab.example.com:
+        sfo:
+          hosts:
+            serverc.lab.example.com:
+    emea:
+      children:
+        fra:
+          hosts:
+            serverd.lab.example.com:
+    dev:
+      hosts:
+        servera.lab.example.com:
+    test:
+      hosts:
+        serverb.lab.example.com:
+    prod:
+      hosts:
+        serverc.lab.example.com:
+        serverd.lab.example.com:
+      vars:
+        change_window: Saturday 02:00 UTC

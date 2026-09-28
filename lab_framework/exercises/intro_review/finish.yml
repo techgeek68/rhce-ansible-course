@@ -1,0 +1,10 @@
+---
+- name: Clean up after intro_review
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Delete /etc/intro_review_marker
+      ansible.builtin.file:
+        path: /etc/intro_review_marker
+        state: absent

@@ -1,0 +1,28 @@
+---
+- name: Controlled reboot
+  hosts: web
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Boot time before
+      ansible.builtin.command: who -b
+      register: boot_before
+      changed_when: false
+
+    - name: Host reboots and comes back
+      ansible.builtin.reboot:
+        msg: Rebooting for lab maintenance
+        reboot_timeout: 600
+      register: reboot_result
+
+    - name: Boot time after
+      ansible.builtin.command: who -b
+      register: boot_after
+      changed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          - "Before: {{ boot_before['stdout'] | trim }}"
+          - "After:  {{ boot_after['stdout'] | trim }}"
+          - "Reboot took {{ reboot_result['elapsed'] | default('?') }} seconds"

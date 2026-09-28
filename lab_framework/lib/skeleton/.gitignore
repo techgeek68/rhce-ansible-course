@@ -1,0 +1,5 @@
+*-artifact-*.json
+ansible-navigator.log
+ansible.log
+collections/
+.ansible/

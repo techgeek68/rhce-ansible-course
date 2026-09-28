@@ -1,0 +1,37 @@
+---
+- name: Return the portal hosts to a clean state
+  hosts: serverb,serverc
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop httpd if present
+      ansible.builtin.command: systemctl disable --now httpd
+      changed_when: false
+      failed_when: false
+
+    - name: Remove portal files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/httpd/conf.d/portal.conf
+        - /etc/httpd/auth
+        - /var/www/html/index.html
+        - /etc/ansible/facts.d/portal.fact
+
+    - name: Remove web packages
+      ansible.builtin.dnf:
+        name:
+          - httpd
+          - mod_ssl
+        state: absent
+
+    - name: Close https in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=https
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false

@@ -1,0 +1,176 @@
+---
+- name: Grade the project on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/roles_review
+  tasks:
+    - name: Read project files
+      ansible.builtin.slurp:
+        src: "{{ project }}/{{ item }}"
+      loop:
+        - roles/requirements.yml
+        - roles/team.sites/meta/main.yml
+        - portal.yml
+        - collections/requirements.yml
+      register: raw
+      failed_when: false
+
+    - name: Parse project files
+      ansible.builtin.set_fact:
+        role_reqs: "{{ (raw.results[0].content | default('') | b64decode | from_yaml) or [] }}"
+        sites_meta: "{{ (raw.results[1].content | default('') | b64decode | from_yaml) or {} }}"
+        portal: "{{ (raw.results[2].content | default('') | b64decode | from_yaml) or [] }}"
+        coll_reqs_text: "{{ raw.results[3].content | default('') | b64decode }}"
+
+    - name: Summarize the structure
+      ansible.builtin.set_fact:
+        git_req: >-
+          {%- set ns = namespace(ok=false) -%}
+          {%- for r in role_reqs if r is mapping -%}
+          {%- if 'infra.httpd' in (r.get('src', '') ~ r.get('name', '')) and r.get('scm', '') == 'git' and 'utility.lab.example.com:3000' in r.get('src', '') -%}
+          {%- set ns.ok = true -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ ns.ok }}
+        dep_ok: >-
+          {%- set ns = namespace(ok=false) -%}
+          {%- for d in sites_meta.get('dependencies', []) or [] -%}
+          {%- set text = (d if d is string else (d.get('role', '') ~ ' ' ~ d.get('name', '') ~ ' ' ~ d.get('src', ''))) -%}
+          {%- if 'infra.httpd' in text -%}
+          {%- set ns.ok = true -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ ns.ok }}
+        play_summary: >-
+          {%- set ns = namespace(out=[]) -%}
+          {%- set play = portal[0] if portal and portal[0] is mapping else {} -%}
+          {%- for t in play.get('tasks', []) or [] -%}
+          {%- set inc = t.get('ansible.builtin.include_role', t.get('ansible.builtin.import_role', t.get('include_role', t.get('import_role', {})))) -%}
+          {%- if inc is mapping and inc.get('name') -%}
+          {%- set ns.out = ns.out + [inc.get('name')] -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ play.get('hosts', '') }}|{{ play.get('become', false) }}|{{ play.get('force_handlers', false) }}|{{ ns.out | join(',') }}
+
+    - name: Grade the role requirements file
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "roles/requirements.yml installs infra.httpd from Gitea with scm git"
+        lab_pass: "{{ git_req | bool }}"
+
+    - name: Inspect installed and created roles
+      ansible.builtin.stat:
+        path: "{{ project }}/{{ item }}"
+      loop:
+        - roles/infra.httpd/tasks/main.yml
+        - roles/team.sites/tasks/main.yml
+        - roles/team.sites/templates/site.conf.j2
+        - site_tasks.yml
+        - site.conf.j2
+        - group_vars/portal/sites.yml
+        - group_vars/portal/selinux.yml
+        - collections/ansible_collections/community/general/MANIFEST.json
+      register: paths
+
+    - name: Grade the installed dependency
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "infra.httpd is installed in roles/"
+        lab_pass: "{{ paths.results[0].stat.exists }}"
+
+    - name: Grade the new role
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "team.sites has the moved tasks and template, and depends on infra.httpd"
+        lab_pass: >-
+          {{ paths.results[1].stat.exists and paths.results[2].stat.exists and
+             not paths.results[3].stat.exists and not paths.results[4].stat.exists and dep_ok | bool }}
+
+    - name: Grade the group variables
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "sites.yml and selinux.yml are in group_vars/portal/"
+        lab_pass: "{{ paths.results[5].stat.exists and paths.results[6].stat.exists }}"
+
+    - name: Grade the collection
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "community.general installed in collections/ from collections/requirements.yml"
+        lab_pass: "{{ paths.results[7].stat.exists and 'community-general-' in coll_reqs_text }}"
+
+    - name: Grade the playbook
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "portal.yml: portal hosts, become, force_handlers, selinux role before team.sites"
+        lab_pass: >-
+          {{ play_summary is match('portal\|True\|True\|') and
+             play_summary.split('|')[3].split(',')[:2] == ['redhat.rhel_system_roles.selinux', 'team.sites'] }}
+
+- name: Grade the portal host
+  hosts: serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the SELinux port labels
+      ansible.builtin.shell: semanage port -l | grep '^http_port_t'
+      register: ports
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the SELinux ports
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "8181 and 8182 are labeled http_port_t"
+        lab_pass: "{{ ports.stdout is search('\\b8181\\b') and ports.stdout is search('\\b8182\\b') }}"
+
+    - name: Query httpd and the firewall
+      ansible.builtin.shell: |
+        systemctl is-active httpd && systemctl is-enabled httpd &&
+        firewall-cmd --permanent --query-port=8181/tcp && firewall-cmd --permanent --query-port=8182/tcp &&
+        firewall-cmd --permanent --query-service=http
+      register: state
+      changed_when: false
+      failed_when: false
+
+    - name: Grade service and firewall
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "httpd runs; http, 8181, and 8182 are open"
+        lab_pass: "{{ state.rc == 0 }}"
+
+    - name: Fetch the three pages from workstation
+      ansible.builtin.uri:
+        url: "http://serverb.lab.example.com{{ item }}/"
+        return_content: true
+      loop:
+        - ""
+        - ":8181"
+        - ":8182"
+      register: pages
+      delegate_to: workstation
+      become: false
+      failed_when: false
+
+    - name: Grade the pages
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Main page and both team pages are served"
+        lab_pass: >-
+          {{ 'Portal host' in (pages.results[0].content | default('')) and
+             'Team Alpha development site' in (pages.results[1].content | default('')) and
+             'Team Bravo development site' in (pages.results[2].content | default('')) }}
+
+    - name: Read the portal inventory file
+      ansible.builtin.slurp:
+        src: /etc/portal.ini
+      register: ini
+      failed_when: false
+
+    - name: Grade the portal inventory file
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "/etc/portal.ini lists the teams in section [portal]"
+        lab_pass: >-
+          {{ (ini.content | default('') | b64decode) is search('\[portal\]') and
+             (ini.content | default('') | b64decode) is search('teams\s*=\s*alpha,bravo') }}

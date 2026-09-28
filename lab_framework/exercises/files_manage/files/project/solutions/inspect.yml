@@ -1,0 +1,50 @@
+---
+- name: Inspect and collect files from serverc
+  hosts: serverc.lab.example.com
+  tasks:
+    - name: Status of the SSH server configuration
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config
+        checksum_algorithm: sha256
+      register: sshd_stat
+
+    - name: Show owner, mode, and checksum
+      ansible.builtin.debug:
+        msg:
+          - "owner={{ sshd_stat['stat']['pw_name'] }} group={{ sshd_stat['stat']['gr_name'] }}"
+          - "mode={{ sshd_stat['stat']['mode'] }}"
+          - "sha256={{ sshd_stat['stat']['checksum'] }}"
+      when: sshd_stat['stat']['exists']
+
+    - name: Find backups made by lineinfile
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: "sshd_config.*~"
+      register: sshd_backups
+
+    - name: List the backups
+      ansible.builtin.debug:
+        msg: "{{ sshd_backups['files'] | map(attribute='path') | list }}"
+
+    - name: Find recent log files larger than 10 KiB
+      ansible.builtin.find:
+        paths: /var/log
+        patterns: "*.log"
+        size: 10k
+        age: -7d
+        recurse: true
+      register: found_logs
+
+    - name: Collect the logs into the project
+      ansible.builtin.fetch:
+        src: "{{ item['path'] }}"
+        dest: "{{ playbook_dir }}/collected/"
+      loop: "{{ found_logs['files'] }}"
+      loop_control:
+        label: "{{ item['path'] }}"
+
+    - name: Collect the SSH configuration under a flat name
+      ansible.builtin.fetch:
+        src: /etc/ssh/sshd_config
+        dest: "{{ playbook_dir }}/collected/sshd_config-{{ inventory_hostname }}"
+        flat: true

@@ -1,0 +1,18 @@
+---
+- name: Imported file, condition copied to every task
+  hosts: servera.lab.example.com
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Import the two tasks
+      ansible.builtin.import_tasks: tasks/once.yml
+      when: setup_done is not defined
+
+- name: Included file, condition checked once
+  hosts: serverb.lab.example.com
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Include the two tasks
+      ansible.builtin.include_tasks: tasks/once.yml
+      when: setup_done is not defined

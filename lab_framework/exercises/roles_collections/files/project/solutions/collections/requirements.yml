@@ -1,0 +1,4 @@
+---
+# Replace X.Y.Z with the version published on materials.example.com
+collections:
+  - name: http://materials.example.com/collections/community-general-X.Y.Z.tar.gz

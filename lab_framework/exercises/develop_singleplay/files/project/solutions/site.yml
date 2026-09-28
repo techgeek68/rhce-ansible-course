@@ -1,0 +1,29 @@
+---
+- name: Status page is published on the web tier
+  hosts: web
+  tasks:
+    - name: Httpd package is installed
+      ansible.builtin.dnf:
+        name: httpd
+        state: present
+
+    - name: Status page is in the document root
+      ansible.builtin.copy:
+        src: files/index.html
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Httpd is running and starts at boot
+      ansible.builtin.systemd_service:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: Firewall allows http now and after reboot
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        immediate: true
+        state: enabled

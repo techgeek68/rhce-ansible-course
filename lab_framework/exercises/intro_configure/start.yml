@@ -1,0 +1,19 @@
+---
+- name: Prepare the intro_configure exercise
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Verify the developer services from 00_lab_setup/02_dev_services.md
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Create the project directory
+      ansible.builtin.file:
+        path: /home/student/intro_configure
+        state: directory
+        mode: "0755"
+
+    - name: Provide the starter project without overwriting student edits
+      ansible.builtin.copy:
+        src: "{{ lab_files }}/project/"
+        dest: /home/student/intro_configure/
+        force: false

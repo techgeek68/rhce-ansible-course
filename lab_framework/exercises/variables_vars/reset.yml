@@ -1,0 +1,28 @@
+---
+- name: Return the managed hosts to a clean state
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove exercise accounts
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop:
+        - devlead
+        - oncall
+        - auditor
+
+    - name: Remove exercise packages
+      ansible.builtin.dnf:
+        name:
+          - at
+          - tmux
+        state: absent
+
+    - name: Empty the login banner
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/motd
+        mode: "0644"

@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+listen=YES
+listen_ipv6=NO
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+pam_service_name=vsftpd
+userlist_enable=YES
+ftpd_banner={{ ftp_banner }}

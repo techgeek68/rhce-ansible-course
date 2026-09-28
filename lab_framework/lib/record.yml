@@ -1,0 +1,12 @@
+---
+# Appends one grading result to the results file on workstation.
+# Required variables: lab_check (text), lab_pass (boolean expression)
+- name: "Record result: {{ lab_check }}"
+  ansible.builtin.lineinfile:
+    path: "{{ lab_results_file }}"
+    line: "{{ 'PASS' if (lab_pass | bool) else 'FAIL' }}|{{ lab_check }}"
+    create: true
+    mode: "0600"
+  delegate_to: workstation
+  become: false
+  throttle: 1

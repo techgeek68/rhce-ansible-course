@@ -1,0 +1,16 @@
+---
+- name: Return servera and serverb to a clean state
+  hosts: servera,serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Time zone back to UTC
+      ansible.builtin.command: timedatectl set-timezone UTC
+      changed_when: false
+
+    - name: SELinux boolean and port label removed
+      ansible.builtin.shell: |
+        setsebool -P httpd_can_network_connect off
+        semanage port -d -t http_port_t -p tcp 8088 2>/dev/null
+        true
+      changed_when: false

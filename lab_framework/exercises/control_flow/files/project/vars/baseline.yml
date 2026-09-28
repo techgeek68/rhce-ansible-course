@@ -1,0 +1,25 @@
+---
+admin_groups:
+  - ops
+  - audit
+
+site_users:
+  - name: ana
+    groups:
+      - ops
+    state: present
+  - name: raj
+    groups:
+      - ops
+      - audit
+    state: present
+  - name: lee
+    groups:
+      - audit
+    state: absent
+
+db_kernel_params:
+  vm.swappiness: 10
+  net.ipv4.tcp_keepalive_time: 600
+
+monitor_min_ram_mb: 1024

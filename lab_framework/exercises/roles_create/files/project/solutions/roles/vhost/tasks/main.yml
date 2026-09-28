@@ -1,0 +1,42 @@
+---
+- name: Web packages are installed
+  ansible.builtin.dnf:
+    name: "{{ vhost_packages }}"
+    state: present
+
+- name: Web and firewall services run and start at boot
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - firewalld
+    - httpd
+
+- name: Document root exists for {{ vhost_name }}
+  ansible.builtin.file:
+    path: "{{ vhost_root }}/{{ vhost_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Home page exists for {{ vhost_name }}
+  ansible.builtin.copy:
+    content: "{{ vhost_title }}\n"
+    dest: "{{ vhost_root }}/{{ vhost_name }}/index.html"
+    mode: "0644"
+
+- name: Virtual host configuration for {{ vhost_name }}
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: /etc/httpd/conf.d/{{ vhost_name }}.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart httpd
+
+- name: Firewall allows the site port {{ vhost_port }}
+  ansible.posix.firewalld:
+    port: "{{ vhost_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled

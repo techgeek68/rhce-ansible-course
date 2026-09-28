@@ -1,0 +1,8 @@
+---
+- name: Login shells use the team prompt and history settings
+  ansible.builtin.template:
+    src: lab_shell.sh.j2
+    dest: /etc/profile.d/lab_shell.sh
+    owner: root
+    group: root
+    mode: "0644"

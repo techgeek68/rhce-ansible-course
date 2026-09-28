@@ -1,0 +1,21 @@
+---
+lab_users:
+  - name: alice
+    uid: 2101
+    comment: Alice, web administrator
+    groups:
+      - webadmin
+  - name: bob
+    uid: 2102
+    comment: Bob, web administrator and auditor
+    groups:
+      - webadmin
+      - auditors
+  - name: carol
+    uid: 2103
+    comment: Carol, auditor
+    groups:
+      - auditors
+
+# Lab only. Real projects keep passwords in a vault encrypted file.
+lab_user_password: Lab@2026

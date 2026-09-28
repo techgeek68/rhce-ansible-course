@@ -1,0 +1,6 @@
+---
+# Variables for redhat.rhel_system_roles.timesync
+timesync_ntp_provider: chrony
+timesync_ntp_servers:
+  - hostname: bastion.lab.example.com
+    iburst: true

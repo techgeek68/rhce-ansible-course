@@ -1,0 +1,13 @@
+---
+- name: Show which account runs tasks on each managed host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ask the managed host for the effective user
+      ansible.builtin.command: id -un
+      register: effective_user
+      changed_when: false
+
+    - name: Report the account
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} runs tasks as {{ effective_user.stdout }}"

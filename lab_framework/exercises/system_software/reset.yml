@@ -1,0 +1,30 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Agent timer is stopped if present
+      ansible.builtin.command: systemctl disable --now lab-agent.timer
+      changed_when: false
+      failed_when: false
+
+    - name: Agent is removed
+      ansible.builtin.dnf:
+        name: lab-agent
+        state: absent
+
+    - name: Repository file and agent data are removed
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/yum.repos.d/lab_internal.repo
+        - /var/lib/lab-agent
+
+    - name: Lab signing key is removed from the RPM database
+      ansible.builtin.shell: |
+        for k in $(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SUMMARY}\n' | awk '/Lab Example Packaging/ {print $1}'); do
+          rpm -e "$k"
+        done
+      changed_when: false

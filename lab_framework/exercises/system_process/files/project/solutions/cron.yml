@@ -1,0 +1,21 @@
+---
+- name: Scheduled jobs with cron
+  hosts: web
+  become: true
+  tasks:
+    - name: Personal crontab entry for devops
+      ansible.builtin.cron:
+        name: Record uptime
+        user: devops
+        minute: "*/10"
+        job: uptime >> /home/devops/uptime.log
+
+    - name: System job in /etc/cron.d
+      ansible.builtin.cron:
+        name: Record disk usage
+        cron_file: lab_disk_usage
+        user: devops
+        minute: "*/5"
+        hour: "8-17"
+        weekday: "1-5"
+        job: df -h / >> /home/devops/disk_usage.log

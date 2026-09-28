@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: role skeleton, defaults, vars, handlers, argument specs"
+HOSTS="workstation servera"

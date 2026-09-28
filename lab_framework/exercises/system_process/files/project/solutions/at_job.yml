@@ -1,0 +1,22 @@
+---
+- name: One time job with at
+  hosts: web
+  become: true
+  tasks:
+    - name: At is installed
+      ansible.builtin.dnf:
+        name: at
+        state: present
+
+    - name: Atd runs and starts at boot
+      ansible.builtin.systemd_service:
+        name: atd
+        state: started
+        enabled: true
+
+    - name: Job runs once in two minutes
+      ansible.posix.at:
+        command: date > /tmp/lab_at_run
+        count: 2
+        units: minutes
+        unique: true

@@ -1,0 +1,15 @@
+---
+- name: Prepare the scale_review lab
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Verify the developer services
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Build the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_skeleton.yml"
+      vars:
+        project_dir: /home/student/scale_review
+
+- name: Reset the managed hosts
+  ansible.builtin.import_playbook: reset.yml

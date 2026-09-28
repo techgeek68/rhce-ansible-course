@@ -1,0 +1,51 @@
+---
+- name: Return serverb to a clean state
+  hosts: serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop httpd if present
+      ansible.builtin.command: systemctl disable --now httpd
+      changed_when: false
+      failed_when: false
+
+    - name: Remove portal files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /srv/sites
+        - /etc/httpd/conf.d/team_sites.conf
+        - /var/www/html/index.html
+        - /etc/portal.ini
+
+    - name: Remove team accounts
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop:
+        - alpha
+        - bravo
+
+    - name: Remove httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+
+    - name: Remove SELinux port and file context rules if present
+      ansible.builtin.shell: |
+        semanage port -d -t http_port_t -p tcp 8181 2>/dev/null
+        semanage port -d -t http_port_t -p tcp 8182 2>/dev/null
+        semanage fcontext -d '/srv/sites(/.*)?' 2>/dev/null
+        true
+      changed_when: false
+
+    - name: Close the portal ports
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --remove-service=http
+        firewall-cmd --permanent --remove-port=8181/tcp
+        firewall-cmd --permanent --remove-port=8182/tcp
+        firewall-cmd --reload
+      changed_when: false
+      failed_when: false

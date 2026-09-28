@@ -1,0 +1,14 @@
+---
+- name: Clean up after intro_devenv
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Find development containers that VS Code created
+      ansible.builtin.command: podman ps -aq --filter label=devcontainer.local_folder
+      register: devcontainers
+      changed_when: false
+
+    - name: Remove leftover development containers
+      ansible.builtin.command: "podman rm -f {{ item }}"
+      loop: "{{ devcontainers.stdout_lines }}"
+      changed_when: true

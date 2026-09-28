@@ -1,0 +1,17 @@
+---
+- name: Default boot target
+  hosts: web
+  become: true
+  gather_facts: false
+  vars:
+    default_target: graphical.target
+  tasks:
+    - name: Current default target is read
+      ansible.builtin.command: systemctl get-default
+      register: current_target
+      changed_when: false
+
+    - name: Default target is set
+      ansible.builtin.command: systemctl set-default {{ default_target }}
+      when: current_target['stdout'] != default_target
+      changed_when: true

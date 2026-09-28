@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: host patterns, --limit, ansible_host, subscripts"
+HOSTS="workstation"

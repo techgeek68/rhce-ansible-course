@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Student User
+  description: One Apache virtual host per call, with its own port and document root
+  company: Lab Example
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+        - "10"
+  galaxy_tags:
+    - web
+    - apache
+
+dependencies: []

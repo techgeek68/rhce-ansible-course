@@ -1,0 +1,14 @@
+---
+- name: List disks, sizes, and use
+  hosts: all
+  tasks:
+    - name: Show each disk
+      ansible.builtin.debug:
+        msg: >-
+          /dev/{{ item['key'] }}:
+          {{ ((item['value']['sectors'] | int) * (item['value']['sectorsize'] | int) / 1073741824) | round(2) }} GiB,
+          {{ item['value']['partitions'] | length }} partitions,
+          {{ 'in use by ' ~ item['value']['holders'] | join(',') if item['value']['holders'] else 'no holders' }}
+      loop: "{{ ansible_facts['devices'] | dict2items | selectattr('key', 'match', '^(sd|vd|nvme|xvd)') | list }}"
+      loop_control:
+        label: "{{ item['key'] }}"

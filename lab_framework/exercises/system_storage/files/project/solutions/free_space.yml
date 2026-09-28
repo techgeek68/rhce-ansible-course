@@ -1,0 +1,14 @@
+---
+- name: Free space from mount facts
+  hosts: web
+  tasks:
+    - name: Report free space on the lab file systems
+      ansible.builtin.debug:
+        msg: >-
+          {{ item['mount'] }} on {{ item['device'] }}:
+          {{ (item['size_available'] / 1048576) | round(1) }} MiB free of
+          {{ (item['size_total'] / 1048576) | round(1) }} MiB
+      loop: "{{ ansible_facts['mounts'] }}"
+      loop_control:
+        label: "{{ item['mount'] }}"
+      when: item['mount'] is match('/srv/|/mnt/scratch')

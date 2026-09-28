@@ -1,0 +1,39 @@
+# Role groups
+[web]
+server[a:c].lab.example.com
+
+[db]
+serverd.lab.example.com db_engine=mariadb
+
+# Site groups
+[nyc]
+servera.lab.example.com
+serverb.lab.example.com
+
+[sfo]
+serverc.lab.example.com
+
+[fra]
+serverd.lab.example.com
+
+# Region groups built from sites
+[americas:children]
+nyc
+sfo
+
+[emea:children]
+fra
+
+# Stage groups
+[dev]
+servera.lab.example.com
+
+[test]
+serverb.lab.example.com
+
+[prod]
+serverc.lab.example.com
+serverd.lab.example.com
+
+[prod:vars]
+change_window="Saturday 02:00 UTC"

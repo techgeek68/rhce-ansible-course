@@ -1,0 +1,39 @@
+name: Course checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Navigation is up to date
+        run: |
+          python3 tools/build_nav.py
+          git diff --exit-code || { echo "Run python3 tools/build_nav.py and commit the result"; exit 1; }
+
+      - name: All relative links resolve
+        run: python3 tools/check_links.py
+
+      - name: Shell scripts parse
+        run: |
+          for f in $(git ls-files '*.sh') lab_framework/bin/lab lab_framework/completion/lab; do
+            bash -n "$f" || exit 1
+          done
+
+      - name: Framework playbooks pass a syntax check
+        run: |
+          pip install --quiet ansible-core
+          cd lab_framework
+          for f in exercises/*/start.yml exercises/*/finish.yml exercises/*/grade.yml; do
+            [ -f "$f" ] || continue
+            ANSIBLE_CONFIG=ansible.cfg ansible-playbook --syntax-check "$f" -e lab_lib="$PWD/lib" -e lab_files=/tmp >/dev/null || { echo "FAILED: $f"; exit 1; }
+          done

@@ -1,0 +1,10 @@
+---
+- name: Login banner on the probe host
+  hosts: probes
+  become: true
+  tasks:
+    - name: Banner line is present exactly once
+      ansible.builtin.lineinfile:
+        path: /etc/motd
+        line: Monitoring probe. Contact the platform team.
+        state: present

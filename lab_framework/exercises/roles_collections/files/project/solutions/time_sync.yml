@@ -1,0 +1,7 @@
+---
+- name: Time synchronization from a RHEL system role
+  hosts: web
+  tasks:
+    - name: Chrony uses the lab time server
+      ansible.builtin.include_role:
+        name: redhat.rhel_system_roles.timesync

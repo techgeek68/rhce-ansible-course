@@ -1,0 +1,8 @@
+---
+- name: Record that setup ran
+  ansible.builtin.set_fact:
+    setup_done: true
+
+- name: Second task of the file
+  ansible.builtin.debug:
+    msg: The second task ran

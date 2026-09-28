@@ -1,0 +1,23 @@
+---
+- name: Play section order
+  hosts: web
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Written first, runs third
+      ansible.builtin.debug:
+        msg: tasks section
+
+  post_tasks:
+    - name: Runs last
+      ansible.builtin.debug:
+        msg: post_tasks section
+
+  roles:
+    - role: announce
+      announce_text: roles section, runs second
+
+  pre_tasks:
+    - name: Runs first
+      ansible.builtin.debug:
+        msg: pre_tasks section

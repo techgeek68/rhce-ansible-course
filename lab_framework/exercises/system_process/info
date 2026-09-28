@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: cron, at, systemd timers, boot target, reboot"
+HOSTS="workstation servera"

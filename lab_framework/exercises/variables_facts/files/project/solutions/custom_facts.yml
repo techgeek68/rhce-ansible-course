@@ -1,0 +1,29 @@
+---
+- name: Custom facts are installed on the web hosts
+  hosts: web
+  tasks:
+    - name: Facts directory exists
+      ansible.builtin.file:
+        path: /etc/ansible/facts.d
+        state: directory
+        mode: "0755"
+
+    - name: Static deployment facts
+      ansible.builtin.copy:
+        content: |
+          [deploy]
+          package = vsftpd
+          service = vsftpd
+          state = started
+          enabled = true
+        dest: /etc/ansible/facts.d/app.fact
+        mode: "0644"
+
+    - name: Dynamic runtime facts
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          printf '{"boot_id": "%s", "logged_in_users": %s}\n' \
+            "$(cat /proc/sys/kernel/random/boot_id)" "$(who | wc -l)"
+        dest: /etc/ansible/facts.d/runtime.fact
+        mode: "0755"

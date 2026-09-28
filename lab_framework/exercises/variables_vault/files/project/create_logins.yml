@@ -1,0 +1,10 @@
+---
+- name: Stage login exists with its vaulted password
+  hosts: all
+  tasks:
+    - name: Stage login account
+      ansible.builtin.user:
+        name: "{{ team_login }}"
+        password: "{{ team_password_hash }}"
+        state: present
+      no_log: true

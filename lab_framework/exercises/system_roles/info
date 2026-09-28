@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: timesync and selinux system roles, post_tasks, reboot handler"
+HOSTS="workstation servera serverb"

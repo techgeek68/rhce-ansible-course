@@ -1,0 +1,3 @@
+---
+- name: Clean up after develop_review
+  ansible.builtin.import_playbook: reset.yml

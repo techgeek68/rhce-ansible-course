@@ -1,0 +1,25 @@
+---
+- name: Return the web tier to a clean state
+  hosts: servera,serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+
+    - name: Remove the status page
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Close http in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=http
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false

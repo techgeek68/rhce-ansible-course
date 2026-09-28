@@ -1,0 +1,15 @@
+---
+# Variables for redhat.rhel_system_roles.selinux
+selinux_state: enforcing
+selinux_policy: targeted
+selinux_ports:
+  - ports:
+      - "8181"
+      - "8182"
+    proto: tcp
+    setype: http_port_t
+    state: present
+selinux_fcontexts:
+  - target: "/srv/sites(/.*)?"
+    setype: httpd_sys_content_t
+    state: present

@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: install collections, shadowing, RHEL system roles"
+HOSTS="workstation servera"

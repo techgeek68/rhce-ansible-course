@@ -1,0 +1,33 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop httpd if present
+      ansible.builtin.command: systemctl disable --now httpd
+      changed_when: false
+      failed_when: false
+
+    - name: Remove exercise files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/httpd/conf.d/status.conf
+        - /var/www/html/index.html
+
+    - name: Remove httpd
+      ansible.builtin.dnf:
+        name: httpd
+        state: absent
+
+    - name: Close http in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=http
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false

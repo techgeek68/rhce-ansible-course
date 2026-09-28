@@ -1,0 +1,12 @@
+---
+- name: Login banner is standard
+  hosts: banner_hosts
+  become: true
+  tasks:
+    - name: Banner text is in place
+      ansible.builtin.copy:
+        content: "Authorized access only. Activity is logged.\n"
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: "0644"

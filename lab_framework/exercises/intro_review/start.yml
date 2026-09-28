@@ -1,0 +1,38 @@
+---
+- name: Prepare the intro_review lab on workstation
+  hosts: workstation
+  gather_facts: false
+  tasks:
+    - name: Verify the developer services from 00_lab_setup/02_dev_services.md
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Create the project directory
+      ansible.builtin.file:
+        path: /home/student/intro_review
+        state: directory
+        mode: "0755"
+
+    - name: Provide the inventory and playbook without overwriting student edits
+      ansible.builtin.copy:
+        src: "{{ lab_files }}/{{ item }}"
+        dest: "/home/student/intro_review/{{ item }}"
+        mode: "0644"
+        force: false
+      loop:
+        - inventory
+        - mark_hosts.yml
+
+    - name: Recreate an empty intro_review repository on Gitea
+      ansible.builtin.include_tasks: "{{ lab_lib }}/gitea_repo.yml"
+      vars:
+        repo_name: intro_review
+
+- name: Remove markers from earlier attempts
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Delete /etc/intro_review_marker
+      ansible.builtin.file:
+        path: /etc/intro_review_marker
+        state: absent

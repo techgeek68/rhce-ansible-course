@@ -1,0 +1,2 @@
+DESCRIPTION="Chapter 4 lab: central logging with loops, handlers, blocks"
+HOSTS="workstation servera serverb serverc serverd"

@@ -1,0 +1,77 @@
+---
+- name: Compliance baseline
+  hosts: all
+  vars_files:
+    - vars/baseline.yml
+  tasks:
+    - name: Admin groups exist
+      ansible.builtin.group:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ admin_groups }}"
+
+    - name: Site users are in their declared state
+      ansible.builtin.user:
+        name: "{{ item['name'] }}"
+        groups: "{{ item['groups'] }}"
+        append: true
+        state: "{{ item['state'] }}"
+        remove: "{{ item['state'] == 'absent' }}"
+      loop: "{{ site_users }}"
+      loop_control:
+        label: "{{ item['name'] }} ({{ item['state'] }})"
+
+    - name: Database kernel parameters are set
+      ansible.posix.sysctl:
+        name: "{{ item['key'] }}"
+        value: "{{ item['value'] }}"
+        sysctl_file: /etc/sysctl.d/90-db.conf
+        reload: true
+      loop: "{{ db_kernel_params | dict2items }}"
+      when: "'db' in group_names"
+
+    - name: Monitoring tools on hosts with enough memory
+      ansible.builtin.dnf:
+        name: sysstat
+        state: present
+      when:
+        - ansible_facts['memtotal_mb'] >= monitor_min_ram_mb
+        - ansible_facts['distribution_major_version'] | int >= 9
+
+    - name: Warn at login when SELinux is not enforcing
+      ansible.builtin.copy:
+        content: "WARNING: SELinux is {{ ansible_facts['selinux']['mode'] }} on this host.\n"
+        dest: /etc/motd
+        mode: "0644"
+      when: ansible_facts['selinux']['mode'] != 'enforcing'
+
+    - name: Clear the warning when SELinux is enforcing
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/motd
+        mode: "0644"
+      when: ansible_facts['selinux']['mode'] == 'enforcing'
+
+- name: Account report
+  hosts: all
+  become: false
+  gather_facts: false
+  vars_files:
+    - vars/baseline.yml
+  tasks:
+    - name: Look up every site user
+      ansible.builtin.command: getent passwd {{ item['name'] }}
+      loop: "{{ site_users }}"
+      loop_control:
+        label: "{{ item['name'] }}"
+      register: lookups
+      changed_when: false
+      failed_when: lookups['rc'] not in [0, 2]
+
+    - name: Report accounts that do not exist
+      ansible.builtin.debug:
+        msg: "{{ item['item']['name'] }} is absent on {{ inventory_hostname }}"
+      loop: "{{ lookups['results'] }}"
+      loop_control:
+        label: "{{ item['item']['name'] }}"
+      when: item['rc'] == 2

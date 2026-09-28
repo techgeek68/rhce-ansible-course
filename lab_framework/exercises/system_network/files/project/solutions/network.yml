@@ -1,0 +1,17 @@
+---
+- name: Network configuration from the system role
+  hosts: web
+  become: true
+  tasks:
+    - name: Lab bridge is configured
+      ansible.builtin.include_role:
+        name: redhat.rhel_system_roles.network
+
+    - name: Facts are refreshed to see the new interface
+      ansible.builtin.setup:
+        gather_subset:
+          - network
+
+    - name: Report the bridge address
+      ansible.builtin.debug:
+        var: ansible_facts['labbr0']['ipv4']

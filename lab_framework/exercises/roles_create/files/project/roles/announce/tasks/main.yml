@@ -1,0 +1,4 @@
+---
+- name: Announce where the role ran
+  ansible.builtin.debug:
+    msg: "{{ announce_text }}"

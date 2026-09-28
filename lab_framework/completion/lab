@@ -1,0 +1,18 @@
+# Bash completion for the local lab command
+_lab() {
+  local cur=${COMP_WORDS[COMP_CWORD]}
+  local root=${LAB_ROOT:-/opt/rh294lab}/exercises
+  local names d
+  if (( COMP_CWORD == 1 )); then
+    COMPREPLY=( $(compgen -W "start grade finish list" -- "$cur") )
+  elif (( COMP_CWORD == 2 )); then
+    names=""
+    if [[ ${COMP_WORDS[1]} == grade ]]; then
+      for d in "$root"/*/grade.yml; do [[ -e $d ]] && names+=" $(basename "$(dirname "$d")")"; done
+    else
+      for d in "$root"/*/; do [[ -d $d ]] && names+=" $(basename "$d")"; done
+    fi
+    COMPREPLY=( $(compgen -W "$names" -- "$cur") )
+  fi
+}
+complete -F _lab lab

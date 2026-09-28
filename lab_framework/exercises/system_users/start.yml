@@ -1,0 +1,27 @@
+---
+- name: Prepare the system_users exercise
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project_dir: /home/student/system_users
+  tasks:
+    - name: Verify the developer services
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Build the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_skeleton.yml"
+
+    - name: Key directory exists
+      ansible.builtin.file:
+        path: "{{ project_dir }}/files/keys"
+        state: directory
+        mode: "0700"
+
+    - name: Generate SSH key pairs for the lab users
+      ansible.builtin.command:
+        cmd: ssh-keygen -q -t ed25519 -N '' -C "{{ item }}@lab" -f {{ project_dir }}/files/keys/{{ item }}
+        creates: "{{ project_dir }}/files/keys/{{ item }}.pub"
+      loop: ["alice", "bob", "carol"]
+
+- name: Reset the managed hosts
+  ansible.builtin.import_playbook: reset.yml

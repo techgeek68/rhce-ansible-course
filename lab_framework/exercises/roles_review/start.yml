@@ -1,0 +1,25 @@
+---
+- name: Prepare the roles_review lab
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project_dir: /home/student/roles_review
+  tasks:
+    - name: Verify the developer services
+      ansible.builtin.include_tasks: "{{ lab_lib }}/require_devtools.yml"
+
+    - name: Build the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_skeleton.yml"
+
+    - name: Provide the RHEL system roles collection in the project
+      ansible.builtin.include_tasks: "{{ lab_lib }}/project_system_roles.yml"
+
+    - name: Publish the infra.httpd role on Gitea
+      ansible.builtin.include_tasks: "{{ lab_lib }}/gitea_repo.yml"
+      vars:
+        repo_name: infra.httpd
+        repo_src: "{{ lab_files }}/infra_httpd"
+        repo_tag: v1.0.0
+
+- name: Reset the managed hosts
+  ansible.builtin.import_playbook: reset.yml

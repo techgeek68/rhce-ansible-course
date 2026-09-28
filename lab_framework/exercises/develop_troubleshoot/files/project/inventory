@@ -1,0 +1,6 @@
+[ftp_servers]
+servera.lab.example.com
+
+[banner_hosts]
+serverb.lab.example.com
+serverc.lab.exmaple.com

@@ -1,0 +1,6 @@
+---
+- name: Basic home page
+  ansible.builtin.copy:
+    content: "{{ inventory_hostname }} runs the basic profile\n"
+    dest: /var/www/html/index.html
+    mode: "0644"

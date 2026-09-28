@@ -1,0 +1,30 @@
+---
+- name: Honest command tasks and input validation
+  hosts: dev
+  vars:
+    app_port: 8080
+  tasks:
+    - name: Port setting is valid
+      ansible.builtin.assert:
+        that:
+          - app_port | int >= 1024
+          - app_port | int <= 65535
+        fail_msg: "app_port {{ app_port }} must be between 1024 and 65535"
+        success_msg: "app_port {{ app_port }} accepted"
+
+    - name: Read the root file system type
+      ansible.builtin.command: findmnt -n -o FSTYPE /
+      register: root_fs
+      changed_when: false
+      failed_when: root_fs['stdout'] not in ['xfs', 'ext4']
+
+    - name: Drop directory exists
+      ansible.builtin.file:
+        path: /srv/drop
+        state: directory
+        mode: "0755"
+
+    - name: SELinux labels of the drop directory are correct
+      ansible.builtin.command: restorecon -Rv /srv/drop
+      register: relabel
+      changed_when: "'Relabeled' in relabel['stdout']"

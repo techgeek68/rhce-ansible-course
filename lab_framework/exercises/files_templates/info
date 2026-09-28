@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: Jinja2 templates, loops, conditions, filters"
+HOSTS="workstation servera serverb serverc serverd"

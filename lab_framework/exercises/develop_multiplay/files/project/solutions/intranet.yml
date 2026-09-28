@@ -1,0 +1,62 @@
+---
+- name: Intranet web server is ready
+  hosts: intranet
+  become: true
+  tasks:
+    - name: Web server and firewall packages are installed
+      ansible.builtin.dnf:
+        name:
+          - httpd
+          - firewalld
+        state: present
+
+    - name: Intranet home page is in place
+      ansible.builtin.copy:
+        content: "Intranet online\n"
+        dest: /var/www/html/index.html
+        mode: "0644"
+
+    - name: Firewalld is running and starts at boot
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Firewall allows http now and after reboot
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        immediate: true
+        state: enabled
+
+    - name: Httpd is running and starts at boot
+      ansible.builtin.systemd_service:
+        name: httpd
+        state: started
+        enabled: true
+
+- name: Probe host checks the intranet
+  hosts: probes
+  become: false
+  tasks:
+    - name: Intranet answers with HTTP 200
+      ansible.builtin.uri:
+        url: http://servera.lab.example.com
+        return_content: true
+        status_code: 200
+      register: probe
+
+    - name: Show what the intranet returned
+      ansible.builtin.debug:
+        var: probe.content
+
+- name: Probe result is stored for the student account
+  hosts: probes
+  become: true
+  become_user: student
+  tasks:
+    - name: Report file is written as student
+      ansible.builtin.copy:
+        content: "{{ probe.url }} answered {{ probe.status }}: {{ probe.content }}"
+        dest: /home/student/intranet_probe.txt
+        mode: "0644"

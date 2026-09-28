@@ -1,0 +1,38 @@
+---
+- name: Recurring job with a systemd timer
+  hosts: web
+  become: true
+  tasks:
+    - name: Service unit exists
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/lab-report.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Append a time stamp to the lab report
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/sh -c 'date >> /var/log/lab-report.log'
+
+    - name: Timer unit exists
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/lab-report.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Run lab-report every two minutes
+
+          [Timer]
+          OnCalendar=*:0/2
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Timer runs and starts at boot
+      ansible.builtin.systemd_service:
+        name: lab-report.timer
+        state: started
+        enabled: true
+        daemon_reload: true

@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: network role, network facts, firewall zone"
+HOSTS="workstation servera"

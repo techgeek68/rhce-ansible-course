@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: encrypt files and strings, vault IDs, no_log"
+HOSTS="workstation servera serverb serverc serverd"

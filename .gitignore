@@ -1,0 +1,23 @@
+# Editor and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/*
+
+# Python and Ansible run artifacts
+__pycache__/
+*.pyc
+*.retry
+ansible-navigator.log
+**/artifacts/*.json
+
+# Never commit private keys or vault passwords generated while testing
+id_rsa
+id_ed25519
+*.pem
+.vault_pass*
+vault_pass*.txt
+
+# Local lab state
+.lab/

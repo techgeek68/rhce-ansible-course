@@ -1,0 +1,3 @@
+---
+- name: Clean up after control_flow
+  ansible.builtin.import_playbook: reset.yml

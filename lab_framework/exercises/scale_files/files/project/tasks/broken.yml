@@ -1,0 +1,4 @@
+---
+- name: This file has a YAML error
+  ansible.builtin.debug:
+    msg: Status: broken

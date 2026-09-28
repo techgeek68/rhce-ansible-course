@@ -1,0 +1,7 @@
+---
+- name: Confirm Ansible can manage the database tier
+  hosts: db
+  gather_facts: false
+  tasks:
+    - name: Round trip through SSH and Python
+      ansible.builtin.ping:

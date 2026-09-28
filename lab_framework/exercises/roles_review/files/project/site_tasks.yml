@@ -1,0 +1,51 @@
+---
+- name: Team accounts exist
+  ansible.builtin.user:
+    name: "{{ item['name'] }}"
+    state: present
+  loop: "{{ team_sites }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: Team document roots exist
+  ansible.builtin.file:
+    path: /srv/sites/{{ item['name'] }}
+    state: directory
+    owner: "{{ item['name'] }}"
+    group: apache
+    mode: "0755"
+    setype: httpd_sys_content_t
+  loop: "{{ team_sites }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: Team home pages exist
+  ansible.builtin.copy:
+    content: "{{ item['title'] }}\n"
+    dest: /srv/sites/{{ item['name'] }}/index.html
+    owner: "{{ item['name'] }}"
+    group: apache
+    mode: "0644"
+    setype: httpd_sys_content_t
+  loop: "{{ team_sites }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: Team virtual hosts are configured
+  ansible.builtin.template:
+    src: site.conf.j2
+    dest: /etc/httpd/conf.d/team_sites.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart httpd
+
+- name: Firewall allows the team ports
+  ansible.posix.firewalld:
+    port: "{{ item['port'] }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ team_sites }}"
+  loop_control:
+    label: "{{ item['port'] }}"

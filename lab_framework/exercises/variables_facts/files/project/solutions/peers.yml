@@ -1,0 +1,26 @@
+---
+- name: Network facts are collected from every web host
+  hosts: web
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Gather only network facts
+      ansible.builtin.setup:
+        gather_subset:
+          - "!all"
+          - network
+
+- name: Servera records what it knows about its peers
+  hosts: servera.lab.example.com
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Peer report is written from magic variables
+      ansible.builtin.copy:
+        content: |
+          inventory name: {{ inventory_hostname }}
+          my groups: {{ group_names | join(', ') }}
+          web hosts: {{ groups['web'] | join(', ') }}
+          serverb address: {{ hostvars['serverb.lab.example.com']['ansible_facts']['default_ipv4']['address'] }}
+        dest: /tmp/peers.txt
+        mode: "0644"

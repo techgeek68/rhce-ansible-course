@@ -1,0 +1,68 @@
+---
+- name: Grade the web server on servera
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Query the httpd package
+      ansible.builtin.command: rpm -q httpd
+      register: pkg
+      changed_when: false
+      failed_when: false
+
+    - name: Grade package installation
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "httpd is installed on servera"
+        lab_pass: "{{ pkg.rc == 0 }}"
+
+    - name: Query the httpd service state
+      ansible.builtin.command: systemctl is-active httpd
+      register: active
+      changed_when: false
+      failed_when: false
+
+    - name: Grade service state
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "httpd is running on servera"
+        lab_pass: "{{ active.stdout == 'active' }}"
+
+    - name: Query the httpd service boot setting
+      ansible.builtin.command: systemctl is-enabled httpd
+      register: enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Grade boot setting
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "httpd starts at boot on servera"
+        lab_pass: "{{ enabled.stdout == 'enabled' }}"
+
+    - name: Query the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --query-service=http
+      register: fw
+      changed_when: false
+      failed_when: false
+
+    - name: Grade firewall configuration
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "http is permanently allowed in firewalld on servera"
+        lab_pass: "{{ fw.rc == 0 }}"
+
+    - name: Fetch the home page from workstation
+      ansible.builtin.uri:
+        url: http://servera.lab.example.com/
+        return_content: true
+      register: page
+      delegate_to: workstation
+      become: false
+      failed_when: false
+
+    - name: Grade web content
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Home page shows 'Welcome to servera'"
+        lab_pass: "{{ page.status | default(0) == 200 and 'Welcome to servera' in page.content | default('') }}"

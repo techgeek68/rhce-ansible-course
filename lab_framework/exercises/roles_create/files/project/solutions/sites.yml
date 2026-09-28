@@ -1,0 +1,18 @@
+---
+- name: Two virtual hosts from one role
+  hosts: web
+  tasks:
+    - name: Main site
+      ansible.builtin.include_role:
+        name: vhost
+      vars:
+        vhost_name: main
+        vhost_title: Main site on {{ inventory_hostname }}
+
+    - name: Documentation site
+      ansible.builtin.include_role:
+        name: vhost
+      vars:
+        vhost_name: docs
+        vhost_port: 8008
+        vhost_title: Documentation site

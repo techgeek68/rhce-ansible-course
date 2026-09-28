@@ -1,0 +1,49 @@
+---
+- name: Application configuration with a safe fallback
+  hosts: prod
+  vars:
+    config_url: http://materials.example.com/config/labapp.conf
+  tasks:
+    - name: Configuration directory exists
+      ansible.builtin.file:
+        path: /etc/labapp
+        state: directory
+        mode: "0755"
+
+    - name: Configuration comes from the central source when possible
+      block:
+        - name: Central configuration is downloaded
+          ansible.builtin.get_url:
+            url: "{{ config_url }}"
+            dest: /etc/labapp/labapp.conf
+            mode: "0644"
+
+        - name: Record the source
+          ansible.builtin.set_fact:
+            config_source: central
+
+      rescue:
+        - name: Explain the failure
+          ansible.builtin.debug:
+            msg: >-
+              {{ ansible_failed_task['name'] }} failed:
+              {{ ansible_failed_result['msg'] }}
+
+        - name: Default configuration is written instead
+          ansible.builtin.copy:
+            content: |
+              # Default configuration, central source unavailable
+              listen_port = 8080
+            dest: /etc/labapp/labapp.conf
+            mode: "0644"
+
+        - name: Record the source
+          ansible.builtin.set_fact:
+            config_source: fallback
+
+      always:
+        - name: Status file names the configuration source
+          ansible.builtin.copy:
+            content: "config_source={{ config_source | default('unknown') }}\n"
+            dest: /etc/labapp/status
+            mode: "0644"

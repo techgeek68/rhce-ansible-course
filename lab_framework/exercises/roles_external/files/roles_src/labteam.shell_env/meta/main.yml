@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: Lab Team
+  description: Standard prompt and shell history for login shells
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+        - "10"
+dependencies: []

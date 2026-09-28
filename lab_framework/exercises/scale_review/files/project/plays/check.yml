@@ -1,0 +1,13 @@
+---
+- name: Status pages answer from the control side
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Every application server serves its status page
+      ansible.builtin.uri:
+        url: "http://{{ item }}/status/"
+        return_content: true
+      register: status_pages
+      failed_when: (item ~ ' is serving') not in status_pages['content'] | default('')
+      loop: "{{ groups['app_east'] + groups['app_west'] }}"

@@ -1,0 +1,24 @@
+---
+- name: Return the web hosts to a clean state
+  hosts: servera,serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Stop vsftpd if present
+      ansible.builtin.command: systemctl disable --now vsftpd
+      changed_when: false
+      failed_when: false
+
+    - name: Remove vsftpd
+      ansible.builtin.dnf:
+        name: vsftpd
+        state: absent
+
+    - name: Remove custom facts and the peer report
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/ansible/facts.d/app.fact
+        - /etc/ansible/facts.d/runtime.fact
+        - /tmp/peers.txt

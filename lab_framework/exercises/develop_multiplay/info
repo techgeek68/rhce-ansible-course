@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: several plays, remote users, become_user"
+HOSTS="workstation servera serverb"

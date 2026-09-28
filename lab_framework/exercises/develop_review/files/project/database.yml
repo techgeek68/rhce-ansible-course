@@ -1,0 +1,29 @@
+---
+- hosts: db
+  become: yes
+  tasks:
+    - name: Install database packages
+      dnf:
+        name:
+          - firewalld
+          - mariadb-server
+        state: present
+
+    - name: Firewalld enabled and running
+      ansible.builtin.systemd_service:
+        name: firewalld
+        enabled: true
+        state: started
+
+    - name: firewalld permits the mysql service
+      ansible.posix.firewalld:
+        service: mysql
+        permanent: true
+        state: enabled
+        immediate: true
+
+    - name: MariaDB enabled and running   
+      ansible.builtin.systemd_service:
+        name: mariadb-server
+        enabled: true
+        state: started

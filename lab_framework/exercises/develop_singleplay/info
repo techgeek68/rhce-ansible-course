@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: write, check, run, and replay one play"
+HOSTS="workstation servera serverb"

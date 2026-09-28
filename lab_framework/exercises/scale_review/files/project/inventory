@@ -1,0 +1,13 @@
+[app_east]
+servera.lab.example.com
+serverb.lab.example.com
+
+[app_west]
+serverc.lab.example.com
+serverd.lab.example.com
+
+[support]
+utility.lab.example.com
+
+[legacy]
+server9.old.example.com

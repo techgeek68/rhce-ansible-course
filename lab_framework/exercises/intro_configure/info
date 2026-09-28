@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: ansible.cfg, ansible-navigator.yml, precedence"
+HOSTS="workstation servera serverb serverc serverd"

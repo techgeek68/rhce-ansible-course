@@ -1,0 +1,2 @@
+DESCRIPTION="Framework template: web server on servera"
+HOSTS="workstation servera"

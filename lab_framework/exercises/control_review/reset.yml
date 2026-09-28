@@ -1,0 +1,48 @@
+---
+- name: Return the log host to a clean state
+  hosts: serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove log host files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/rsyslog.d/loghost.conf
+        - /var/log/remote
+
+    - name: Close 514/tcp in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-port=514/tcp
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false
+
+- name: Return the clients to a clean state
+  hosts: servera,serverb,serverc
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove the forwarding rule
+      ansible.builtin.file:
+        path: /etc/rsyslog.d/forward.conf
+        state: absent
+
+    - name: Remove sysstat
+      ansible.builtin.dnf:
+        name: sysstat
+        state: absent
+
+- name: Restart rsyslog everywhere
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Restart rsyslog with the default configuration
+      ansible.builtin.command: systemctl restart rsyslog
+      changed_when: true
+      failed_when: false

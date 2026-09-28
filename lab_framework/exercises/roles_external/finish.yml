@@ -1,0 +1,3 @@
+---
+- name: Clean up after roles_external
+  ansible.builtin.import_playbook: reset.yml

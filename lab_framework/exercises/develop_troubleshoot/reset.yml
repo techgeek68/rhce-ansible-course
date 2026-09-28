@@ -1,0 +1,36 @@
+---
+- name: Return servera to a clean state
+  hosts: servera
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove vsftpd
+      ansible.builtin.dnf:
+        name: vsftpd
+        state: absent
+
+    - name: Remove the vsftpd configuration
+      ansible.builtin.file:
+        path: /etc/vsftpd
+        state: absent
+
+    - name: Close ftp in the permanent firewall configuration
+      ansible.builtin.command: firewall-cmd --permanent --remove-service=ftp
+      register: fw
+      changed_when: "'success' in fw.stdout"
+      failed_when: false
+
+    - name: Reload the firewall
+      ansible.builtin.command: firewall-cmd --reload
+      changed_when: false
+
+- name: Empty the login banner
+  hosts: serverb,serverc
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Reset /etc/motd
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/motd
+        mode: "0644"

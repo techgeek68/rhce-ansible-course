@@ -1,0 +1,19 @@
+---
+- name: Admin tools are installed and the scheduler runs
+  hosts: all
+  vars:
+    tool_pkgs:
+      - at
+      - tmux
+    scheduler_svc: atd
+  tasks:
+    - name: Admin tool packages are installed
+      ansible.builtin.dnf:
+        name: "{{ tool_pkgs }}"
+        state: present
+
+    - name: Scheduler runs and starts at boot {{ scheduler_svc }}
+      ansible.builtin.systemd_service:
+        name: "{{ scheduler_svc }}"
+        state: started
+        enabled: true

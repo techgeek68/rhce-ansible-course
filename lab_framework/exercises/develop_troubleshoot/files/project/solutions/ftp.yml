@@ -1,0 +1,32 @@
+---
+- name: FTP service is available on the ftp servers
+  hosts: ftp_servers
+  become: true
+  vars:
+    ftp_banner: "Welcome: authorized users only"
+  tasks:
+    - name: Install vsftpd
+      ansible.builtin.dnf:
+        name: vsftpd
+        state: present
+
+    - name: Deliver vsftpd configuration
+      ansible.builtin.template:
+        src: vsftpd.conf.j2
+        dest: /etc/vsftpd/vsftpd.conf
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Vsftpd is running and starts at boot
+      ansible.builtin.systemd_service:
+        name: vsftpd
+        state: started
+        enabled: true
+
+    - name: Firewall allows ftp now and after reboot
+      ansible.posix.firewalld:
+        service: ftp
+        permanent: true
+        immediate: true
+        state: enabled

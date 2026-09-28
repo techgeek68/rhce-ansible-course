@@ -1,0 +1,158 @@
+---
+- name: Grade the project on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/files_review
+  tasks:
+    - name: Read the template
+      ansible.builtin.slurp:
+        src: "{{ project }}/templates/node_profile.j2"
+      register: tpl
+      failed_when: false
+
+    - name: Grade the template
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "templates/node_profile.j2 uses ansible_managed, a loop, and filters"
+        lab_pass: >-
+          {{ (tpl.content | default('') | b64decode) is search('ansible_managed') and
+             (tpl.content | default('') | b64decode) is search('{%-?\s*for ') and
+             (tpl.content | default('') | b64decode) is search('\|\s*default') }}
+
+- name: Grade the lab hosts
+  hosts: servera,serverb,serverc
+  become: true
+  gather_facts: true
+  vars:
+    project: /home/student/files_review
+    fqdn: "{{ inventory_hostname }}.lab.example.com"
+    all_nodes:
+      - servera.lab.example.com
+      - serverb.lab.example.com
+      - serverc.lab.example.com
+    role: "{{ 'db' if inventory_hostname == 'serverc' else 'web' }}"
+    expected_lines:
+      - "# Managed by Ansible: changes will be overwritten"
+      - "node = {{ fqdn }}"
+      - "address = {{ ansible_facts['default_ipv4']['address'] }}"
+      - "os = {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+      - "memory_gib = {{ (ansible_facts['memtotal_mb'] / 1024) | round(1) }}"
+      - "vcpus = {{ ansible_facts['processor_vcpus'] }}"
+      - "maintenance = {{ 'unscheduled' if role == 'db' else 'Sun 03:00' }}"
+      - "role = {{ role }}"
+      - "peers = {{ all_nodes | difference([fqdn]) | sort | join(',') }}"
+  tasks:
+    - name: Read the node profile
+      ansible.builtin.slurp:
+        src: /etc/node-profile.conf
+      register: profile_raw
+      failed_when: false
+
+    - name: Keep the profile lines
+      ansible.builtin.set_fact:
+        profile_lines: "{{ (profile_raw.content | default('') | b64decode).splitlines() }}"
+
+    - name: Grade the profile content
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} node profile has every required line"
+        lab_pass: "{{ expected_lines | difference(profile_lines) | length == 0 and profile_lines[0] | default('') == expected_lines[0] }}"
+
+    - name: Inspect managed files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - /etc/node-profile.conf
+        - /etc/issue
+        - /etc/issue.net
+        - /etc/profile.d/lab_env.sh
+      register: st
+
+    - name: Grade ownership and modes
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} profile, issue, lab_env.sh are root:root 0644"
+        lab_pass: >-
+          {{ [st.results[0], st.results[1], st.results[3]] | selectattr('stat.exists') |
+             selectattr('stat.pw_name', 'equalto', 'root') | selectattr('stat.gr_name', 'equalto', 'root') |
+             selectattr('stat.mode', 'equalto', '0644') | list | length == 3 }}
+
+    - name: Read /etc/issue
+      ansible.builtin.slurp:
+        src: /etc/issue
+      register: issue
+
+    - name: Grade the issue banner
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} /etc/issue shows PRIVATE SYSTEM"
+        lab_pass: "{{ (issue.content | b64decode).startswith('PRIVATE SYSTEM') }}"
+
+    - name: Grade the issue.net link
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} /etc/issue.net is a link to /etc/issue"
+        lab_pass: "{{ st.results[2].stat.islnk | default(false) and st.results[2].stat.lnk_source | default('') == '/etc/issue' }}"
+
+    - name: Ask sshd for its effective banner
+      ansible.builtin.shell: sshd -T 2>/dev/null | grep -i '^banner '
+      register: banner
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the SSH banner
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} sshd uses /etc/issue.net as banner"
+        lab_pass: "{{ banner.stdout | trim == 'banner /etc/issue.net' }}"
+
+    - name: Read the environment script
+      ansible.builtin.slurp:
+        src: /etc/profile.d/lab_env.sh
+      register: envsh
+      failed_when: false
+
+    - name: Grade the environment block
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} lab_env.sh holds the LAB ENVIRONMENT block"
+        lab_pass: >-
+          {{ ['# BEGIN LAB ENVIRONMENT',
+              'export LAB_ROLE=' ~ role,
+              'export LAB_NODE=' ~ inventory_hostname,
+              '# END LAB ENVIRONMENT'] |
+             difference((envsh.content | default('') | b64decode).splitlines()) | length == 0 }}
+
+    - name: Inspect the cache directory
+      ansible.builtin.find:
+        paths: /var/tmp/labcache
+        patterns: "*"
+      register: cache
+
+    - name: Grade the cache cleanup
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} old .tmp files removed, other files kept"
+        lab_pass: "{{ (cache.files | map(attribute='path') | map('basename') | sort) == ['keep.log', 'new1.tmp'] }}"
+
+    - name: Checksum of the profile on the host
+      ansible.builtin.stat:
+        path: /etc/node-profile.conf
+      register: remote_profile
+
+    - name: Checksum of the fetched copy
+      ansible.builtin.stat:
+        path: "{{ project }}/profiles/{{ fqdn }}.conf"
+      register: local_profile
+      delegate_to: workstation
+      become: false
+
+    - name: Grade the fetched copy
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "profiles/{{ fqdn }}.conf matches the host's profile"
+        lab_pass: >-
+          {{ remote_profile.stat.exists and local_profile.stat.exists and
+             remote_profile.stat.checksum == local_profile.stat.checksum }}

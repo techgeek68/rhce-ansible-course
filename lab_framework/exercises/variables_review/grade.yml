@@ -1,0 +1,208 @@
+---
+- name: Grade the project on workstation
+  hosts: workstation
+  gather_facts: false
+  vars:
+    project: /home/student/variables_review
+  tasks:
+    - name: Read the vault file header
+      ansible.builtin.command: head -n1 {{ project }}/group_vars/all/vault.yml
+      register: vault_head
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the vault ID
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "group_vars/all/vault.yml encrypted with vault ID portal"
+        lab_pass: "{{ vault_head.stdout | trim == '$ANSIBLE_VAULT;1.2;AES256;portal' }}"
+
+    - name: Inspect the vault password file
+      ansible.builtin.stat:
+        path: "{{ project }}/.portal_pass"
+      register: pass_file
+
+    - name: Grade the vault password file
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: ".portal_pass exists with mode 0600"
+        lab_pass: "{{ pass_file.stat.exists and pass_file.stat.mode == '0600' }}"
+
+    - name: Read the effective configuration
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-config, dump, --only-changed]
+        chdir: "{{ project }}"
+      register: cfg
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the vault identity list
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "ansible.cfg supplies the portal vault password file"
+        lab_pass: "{{ cfg.stdout is search('DEFAULT_VAULT_IDENTITY_LIST\\(.*\\) = .*portal@') }}"
+
+    - name: Resolve serverb variables through the inventory
+      ansible.builtin.command:
+        argv: [env, -u, ANSIBLE_CONFIG, ansible-inventory, --host, serverb.lab.example.com]
+        chdir: "{{ project }}"
+      register: hv_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Keep the resolved variables
+      ansible.builtin.set_fact:
+        hv: "{{ hv_raw.stdout | from_json if hv_raw.rc == 0 else {} }}"
+
+    - name: Grade the plain variables
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Plain variables resolve for serverb"
+        lab_pass: >-
+          {{ hv.portal_user | default('') == 'ops' and
+             hv.portal_owner | default('') == 'ops-team' and
+             hv.auth_dir | default('') == '/etc/httpd/auth' and
+             'mod_ssl' in (hv.web_pkgs | default([])) }}
+
+    - name: Grade the vaulted variables
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Vaulted variables decrypt without prompting"
+        lab_pass: >-
+          {{ hv.portal_password | default('') == 'Ops2026' and
+             hv.portal_htpasswd_hash | default('') == '$apr1$PortaL26$2.RiV9gzOPgV7tK4ekV3s1' }}
+
+    - name: Read the plain variable files
+      ansible.builtin.command: head -qn1 {{ project }}/group_vars/all/vars.yml {{ project }}/group_vars/web/vars.yml
+      register: plain_heads
+      changed_when: false
+      failed_when: false
+
+    - name: Grade that plain files stay readable
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "vars.yml files exist and are not encrypted"
+        lab_pass: "{{ plain_heads.rc == 0 and '$ANSIBLE_VAULT' not in plain_heads.stdout }}"
+
+    - name: Look for no_log in the playbook
+      ansible.builtin.command: grep -Eq '^\s*no_log:\s*true' {{ project }}/portal.yml
+      register: nolog
+      changed_when: false
+      failed_when: false
+
+    - name: Grade no_log
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "portal.yml hides the htpasswd task with no_log"
+        lab_pass: "{{ nolog.rc == 0 }}"
+
+    - name: Read exported facts
+      ansible.builtin.slurp:
+        src: "{{ project }}/facts/{{ item }}.lab.example.com.json"
+      loop:
+        - serverb
+        - serverc
+      register: exported
+      failed_when: false
+
+    - name: Grade exported facts
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "Facts exported to facts/HOST.json for both web hosts"
+        lab_pass: >-
+          {{ exported.results | selectattr('content', 'defined') | list | length == 2 and
+             (exported.results[0].content | b64decode | from_json).fqdn | default('') == 'serverb.lab.example.com' and
+             (exported.results[1].content | b64decode | from_json).fqdn | default('') == 'serverc.lab.example.com' }}
+
+- name: Grade the portal hosts
+  hosts: serverb,serverc
+  become: true
+  gather_facts: true
+  vars:
+    fqdn: "{{ inventory_hostname }}.lab.example.com"
+    expected_page: "{{ fqdn }} ({{ ansible_facts['default_ipv4']['address'] }}) is run by ops-team"
+  tasks:
+    - name: Query httpd and mod_ssl
+      ansible.builtin.shell: rpm -q mod_ssl && systemctl is-active httpd && systemctl is-enabled httpd
+      register: web_state
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the web service
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} has mod_ssl, httpd running and enabled"
+        lab_pass: "{{ web_state.rc == 0 }}"
+
+    - name: Query the firewall
+      ansible.builtin.command: firewall-cmd --permanent --query-service=https
+      register: fw
+      changed_when: false
+      failed_when: false
+
+    - name: Grade the firewall
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} allows https permanently"
+        lab_pass: "{{ fw.rc == 0 }}"
+
+    - name: Inspect the htpasswd file
+      ansible.builtin.stat:
+        path: /etc/httpd/auth/htpasswd
+      register: htp
+
+    - name: Read the htpasswd file
+      ansible.builtin.slurp:
+        src: /etc/httpd/auth/htpasswd
+      register: htp_content
+      failed_when: false
+
+    - name: Grade the htpasswd file
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} htpasswd root:apache 0640 with ops entry"
+        lab_pass: >-
+          {{ htp.stat.exists and htp.stat.pw_name == 'root' and htp.stat.gr_name == 'apache' and
+             htp.stat.mode == '0640' and
+             (htp_content.content | default('') | b64decode | trim) == 'ops:$apr1$PortaL26$2.RiV9gzOPgV7tK4ekV3s1' }}
+
+    - name: Grade the custom fact
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} custom fact portal.owner is ops-team"
+        lab_pass: "{{ ((ansible_facts['ansible_local'] | default({}))['portal'] | default({}))['portal'] | default({}) | dict2items | selectattr('key', 'equalto', 'owner') | map(attribute='value') | list == ['ops-team'] }}"
+
+    - name: Request the page without credentials
+      ansible.builtin.uri:
+        url: "https://{{ fqdn }}/"
+        validate_certs: false
+        status_code: [401]
+      register: anon
+      delegate_to: workstation
+      become: false
+      failed_when: false
+
+    - name: Grade anonymous access
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} refuses anonymous https requests"
+        lab_pass: "{{ anon.status | default(0) == 401 }}"
+
+    - name: Request the page with credentials
+      ansible.builtin.uri:
+        url: "https://{{ fqdn }}/"
+        validate_certs: false
+        force_basic_auth: true
+        url_username: ops
+        url_password: Ops2026
+        return_content: true
+      register: authed
+      delegate_to: workstation
+      become: false
+      failed_when: false
+
+    - name: Grade the page
+      ansible.builtin.include_tasks: "{{ lab_lib }}/record.yml"
+      vars:
+        lab_check: "{{ inventory_hostname }} page correct after login"
+        lab_pass: "{{ authed.status | default(0) == 200 and (authed.content | default('') | trim) == expected_page }}"

@@ -1,0 +1,5 @@
+---
+# Internal values; not meant to be overridden
+vhost_packages:
+  - httpd
+  - firewalld

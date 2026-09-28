@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: storage role, LVM, swap, resize, mount, storage facts"
+HOSTS="workstation servera"

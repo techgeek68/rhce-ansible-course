@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: notify, listen, handler order, flush_handlers"
+HOSTS="workstation servera"

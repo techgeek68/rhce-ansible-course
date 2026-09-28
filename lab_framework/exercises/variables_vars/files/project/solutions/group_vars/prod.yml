@@ -1,0 +1,6 @@
+---
+motd_banner: Set in group_vars/prod.yml
+team_user:
+  name: oncall
+  uid: 7002
+  comment: On call engineer

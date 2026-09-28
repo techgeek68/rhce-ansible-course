@@ -1,0 +1,16 @@
+workstation ansible_connection=local ansible_python_interpreter=/usr/bin/python3 ansible_become_password=student
+
+# Content server; only used to publish lab repositories
+utility ansible_host=utility.lab.example.com ansible_user=student ansible_become_password=student
+
+[managed]
+servera ansible_host=servera.lab.example.com
+serverb ansible_host=serverb.lab.example.com
+serverc ansible_host=serverc.lab.example.com
+serverd ansible_host=serverd.lab.example.com
+
+[all:vars]
+gitea_url=http://utility.lab.example.com:3000
+gitea_user=student
+gitea_password=Student@123
+lab_registry=utility.lab.example.com:5000

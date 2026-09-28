@@ -1,0 +1,44 @@
+---
+# Builds a standard exercise project on workstation.
+# Required variable: project_dir
+# Exercise files come from files/project/ and win over the shared skeleton.
+- name: Create the project directory
+  ansible.builtin.file:
+    path: "{{ project_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy the exercise starter files without overwriting student edits
+  ansible.builtin.copy:
+    src: "{{ lab_files }}/project/"
+    dest: "{{ project_dir }}/"
+    force: false
+
+- name: Add the standard development environment files
+  ansible.builtin.copy:
+    src: "{{ lab_lib }}/skeleton/"
+    dest: "{{ project_dir }}/"
+    force: false
+
+- name: Read the collection list on materials.example.com
+  ansible.builtin.uri:
+    url: http://materials.example.com/collections/
+    return_content: true
+  register: materials_index
+
+- name: Find the ansible.posix tarball
+  ansible.builtin.set_fact:
+    posix_tarball: "{{ materials_index.content | regex_search('ansible-posix-[0-9.]+\\.tar\\.gz') }}"
+
+- name: Stop when ansible.posix is not published
+  ansible.builtin.assert:
+    that: posix_tarball | default('', true) | length > 0
+    fail_msg: "ansible.posix is missing on materials.example.com. Complete 00_lab_setup/02_dev_services.md section 3."
+
+- name: Install ansible.posix into the project collections directory
+  ansible.builtin.command:
+    cmd: >-
+      ansible-galaxy collection install
+      -p {{ project_dir }}/collections
+      http://materials.example.com/collections/{{ posix_tarball }}
+    creates: "{{ project_dir }}/collections/ansible_collections/ansible/posix"

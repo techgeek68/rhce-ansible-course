@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: roles from an archive and from Git, versions, requirements"
+HOSTS="workstation servera"

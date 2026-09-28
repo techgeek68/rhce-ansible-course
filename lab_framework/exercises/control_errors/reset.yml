@@ -1,0 +1,25 @@
+---
+- name: Return the managed hosts to a clean state
+  hosts: servera,serverb,serverc,serverd
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Remove exercise files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/motd_changes.log
+        - /etc/labapp
+        - /srv/drop
+
+    - name: Empty the login banner
+      ansible.builtin.copy:
+        content: ""
+        dest: /etc/motd
+        mode: "0644"
+
+    - name: Remove tree
+      ansible.builtin.dnf:
+        name: tree
+        state: absent

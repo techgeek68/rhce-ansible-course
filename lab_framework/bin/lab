@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# lab: local replacement for the RH294 classroom lab command.
+# Usage: lab start|grade|finish EXERCISE    or    lab list
+set -uo pipefail
+
+LAB_ROOT="${LAB_ROOT:-/opt/rh294lab}"
+EX_DIR="$LAB_ROOT/exercises"
+LIB_DIR="$LAB_ROOT/lib"
+LOG_DIR="$HOME/.lab/logs"
+export ANSIBLE_CONFIG="$LAB_ROOT/ansible.cfg"
+
+if [[ -t 1 ]]; then
+  GREEN=$'\e[1;32m'; RED=$'\e[1;31m'; BOLD=$'\e[1m'; RESET=$'\e[0m'
+else
+  GREEN=''; RED=''; BOLD=''; RESET=''
+fi
+
+usage() {
+  echo "Usage: lab start|grade|finish EXERCISE"
+  echo "       lab list"
+  exit 1
+}
+
+list_exercises() {
+  local d name kind desc
+  for d in "$EX_DIR"/*/; do
+    [[ -d $d ]] || continue
+    name=$(basename "$d")
+    kind="exercise"
+    [[ -f $d/grade.yml ]] && kind="gradable"
+    desc=$(DESCRIPTION=''; source "$d/info" 2>/dev/null; echo "$DESCRIPTION")
+    printf '%-32s %-9s %s\n' "$name" "$kind" "$desc"
+  done
+}
+
+play() {
+  local playbook=$1; shift
+  ansible-playbook "$playbook" \
+    -e "lab_exercise=$EXERCISE" \
+    -e "lab_lib=$LIB_DIR" \
+    -e "lab_files=$EX_DIR/$EXERCISE/files" \
+    -e "lab_hosts=$LAB_HOSTS" \
+    "$@" >>"$LOG" 2>&1
+}
+
+step() {
+  local msg=$1; shift
+  printf ' · %-58s' "$msg"
+  if "$@"; then
+    printf '%sSUCCESS%s\n' "$GREEN" "$RESET"
+  else
+    printf '%sFAIL%s\n' "$RED" "$RESET"
+    echo
+    echo "Details are in $LOG"
+    exit 1
+  fi
+}
+
+[[ $# -eq 1 && $1 == list ]] && { list_exercises; exit 0; }
+[[ $# -eq 2 ]] || usage
+
+ACTION=$1
+EXERCISE=$2
+[[ -d $EX_DIR/$EXERCISE ]] || { echo "Unknown exercise: $EXERCISE. Run: lab list"; exit 1; }
+
+HOSTS="workstation"
+DESCRIPTION=""
+source "$EX_DIR/$EXERCISE/info"
+LAB_HOSTS="${HOSTS// /,}"
+
+mkdir -p "$LOG_DIR"
+LOG="$LOG_DIR/${EXERCISE}_${ACTION}.log"
+: > "$LOG"
+
+case $ACTION in
+  start)
+    echo
+    echo "${BOLD}Starting lab: $EXERCISE${RESET}"
+    echo
+    step "Checking that lab systems are reachable" play "$LIB_DIR/precheck.yml"
+    step "Preparing the environment for $EXERCISE" play "$EX_DIR/$EXERCISE/start.yml"
+    echo
+    ;;
+  grade)
+    [[ -f $EX_DIR/$EXERCISE/grade.yml ]] || { echo "$EXERCISE is not a gradable activity."; exit 1; }
+    RESULTS=$(mktemp)
+    trap 'rm -f "$RESULTS"' EXIT
+    echo
+    echo "${BOLD}Grading lab: $EXERCISE${RESET}"
+    echo
+    step "Checking that lab systems are reachable" play "$LIB_DIR/precheck.yml"
+    play "$EX_DIR/$EXERCISE/grade.yml" -e "lab_results_file=$RESULTS"
+    grade_rc=$?
+    fails=0
+    while IFS='|' read -r status text; do
+      if [[ $status == PASS ]]; then
+        printf ' · %-58s%sPASS%s\n' "$text" "$GREEN" "$RESET"
+      else
+        printf ' · %-58s%sFAIL%s\n' "$text" "$RED" "$RESET"
+        fails=$((fails + 1))
+      fi
+    done < "$RESULTS"
+    if [[ $grade_rc -ne 0 || ! -s $RESULTS ]]; then
+      printf ' · %-58s%sFAIL%s\n' "Grading completed on every host" "$RED" "$RESET"
+      echo "   Details are in $LOG"
+      fails=$((fails + 1))
+    fi
+    echo
+    if [[ $fails -eq 0 ]]; then
+      echo "Overall lab grade: ${GREEN}PASS${RESET}"
+    else
+      echo "Overall lab grade: ${RED}FAIL${RESET}"
+    fi
+    echo
+    [[ $fails -eq 0 ]]
+    ;;
+  finish)
+    echo
+    echo "${BOLD}Finishing lab: $EXERCISE${RESET}"
+    echo
+    step "Checking that lab systems are reachable" play "$LIB_DIR/precheck.yml"
+    step "Cleaning up $EXERCISE" play "$EX_DIR/$EXERCISE/finish.yml"
+    echo
+    ;;
+  *)
+    usage
+    ;;
+esac

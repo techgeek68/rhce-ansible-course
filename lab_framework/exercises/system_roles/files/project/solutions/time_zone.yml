@@ -1,0 +1,23 @@
+---
+- name: Time synchronization and time zone
+  hosts: web
+  become: true
+  roles:
+    - redhat.rhel_system_roles.timesync
+
+  post_tasks:
+    - name: Current time zone is read
+      ansible.builtin.command: timedatectl show -p Timezone --value
+      register: current_timezone
+      changed_when: false
+
+    - name: Time zone is set
+      ansible.builtin.command: timedatectl set-timezone {{ host_timezone }}
+      when: current_timezone['stdout'] != host_timezone
+      changed_when: true
+      notify: Reboot host
+
+  handlers:
+    - name: Reboot host
+      ansible.builtin.reboot:
+        msg: Rebooting to apply the new time zone

@@ -1,0 +1,45 @@
+---
+- name: Return servera and serverb to a clean state
+  hosts: servera,serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Lab accounts are removed
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop:
+        - alice
+        - bob
+        - carol
+        - svc_backup
+
+    - name: Lab groups are removed
+      ansible.builtin.group:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - webadmin
+        - auditors
+
+    - name: Lab files are removed
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/sudoers.d/webadmin
+        - /etc/ssh/ssh_known_hosts
+
+    - name: Root login setting returns to the default
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin\s'
+        line: "#PermitRootLogin prohibit-password"
+      register: sshd_default
+
+    - name: Sshd picks up the default
+      ansible.builtin.systemd_service:
+        name: sshd
+        state: restarted
+      when: sshd_default is changed

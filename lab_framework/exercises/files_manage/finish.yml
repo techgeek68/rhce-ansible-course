@@ -1,0 +1,3 @@
+---
+- name: Clean up after files_manage
+  ansible.builtin.import_playbook: reset.yml

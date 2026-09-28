@@ -1,0 +1,14 @@
+---
+log_min_ram_mb: 512
+log_server_pkgs:
+  - rsyslog
+  - firewalld
+log_services:
+  - rsyslog
+  - firewalld
+log_dirs:
+  - /var/log/remote
+  - /var/log/remote/archive
+log_ports:
+  - 514/tcp
+sysstat_min_ram_mb: 1400

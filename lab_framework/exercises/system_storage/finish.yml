@@ -1,0 +1,3 @@
+---
+- name: Clean up after system_storage
+  ansible.builtin.import_playbook: reset.yml

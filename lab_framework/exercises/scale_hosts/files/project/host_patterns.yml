@@ -1,0 +1,8 @@
+---
+- name: Resolve host patterns
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Show each host the pattern selected
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} connects to {{ ansible_host | default(inventory_hostname) }}"

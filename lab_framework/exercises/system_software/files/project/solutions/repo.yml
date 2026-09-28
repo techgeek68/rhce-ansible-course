@@ -1,0 +1,51 @@
+---
+- name: Lab repository and agent
+  hosts: web
+  become: true
+  vars:
+    agent_pkg: lab-agent
+    repo_url: http://materials.example.com/yum/labrepo
+  tasks:
+    - name: Package facts are gathered
+      ansible.builtin.package_facts:
+
+    - name: Report the agent state before changes
+      ansible.builtin.debug:
+        msg: >-
+          {{ agent_pkg }}
+          {{ 'is installed' if agent_pkg in ansible_facts['packages'] else 'is not installed' }}
+
+    - name: Repository signing key is trusted
+      ansible.builtin.rpm_key:
+        key: "{{ repo_url }}/RPM-GPG-KEY-labexample"
+        state: present
+
+    - name: Lab repository is configured
+      ansible.builtin.yum_repository:
+        name: lab-internal
+        description: Lab Example internal packages
+        file: lab_internal
+        baseurl: "{{ repo_url }}/"
+        gpgcheck: true
+        gpgkey: "{{ repo_url }}/RPM-GPG-KEY-labexample"
+        enabled: true
+
+    - name: Agent is installed
+      ansible.builtin.dnf:
+        name: "{{ agent_pkg }}"
+        state: present
+
+    - name: Package facts are refreshed after the installation
+      ansible.builtin.package_facts:
+
+    - name: Report the installed version
+      ansible.builtin.debug:
+        msg: >-
+          {{ agent_pkg }} {{ ansible_facts['packages'][agent_pkg][0]['version'] }}-{{
+          ansible_facts['packages'][agent_pkg][0]['release'] }} is installed
+
+    - name: Agent timer runs and starts at boot
+      ansible.builtin.systemd_service:
+        name: lab-agent.timer
+        state: started
+        enabled: true

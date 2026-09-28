@@ -1,0 +1,32 @@
+---
+- name: Web server and firewall are installed
+  ansible.builtin.dnf:
+    name:
+      - httpd
+      - firewalld
+    state: present
+
+- name: Firewall runs and starts at boot
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Firewall allows http
+  ansible.posix.firewalld:
+    service: http
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Main page names the host
+  ansible.builtin.copy:
+    content: "{{ httpd_banner }} {{ ansible_facts['fqdn'] }}\n"
+    dest: /var/www/html/index.html
+    mode: "0644"
+
+- name: Httpd runs and starts at boot
+  ansible.builtin.systemd_service:
+    name: httpd
+    state: started
+    enabled: true

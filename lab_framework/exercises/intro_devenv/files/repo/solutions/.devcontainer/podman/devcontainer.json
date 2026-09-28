@@ -1,0 +1,30 @@
+{
+  "name": "ansible-dev-container-podman",
+  "image": "utility.lab.example.com:5000/ansible-automation-platform-26/ansible-dev-tools-rhel9:latest",
+  "containerUser": "root",
+  "runArgs": [
+    "--rm",
+    "--tls-verify=false",
+    "--cap-add=CAP_MKNOD",
+    "--cap-add=NET_ADMIN",
+    "--cap-add=SYS_ADMIN",
+    "--cap-add=SYS_RESOURCE",
+    "--device=/dev/fuse",
+    "--security-opt=seccomp=unconfined",
+    "--security-opt=label=disable",
+    "--security-opt=apparmor=unconfined",
+    "--security-opt=unmask=/sys/fs/cgroup",
+    "--userns=host",
+    "--hostname=ansible-dev-container"
+  ],
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,readonly"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "redhat.ansible"
+      ]
+    }
+  }
+}

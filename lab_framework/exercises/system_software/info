@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: yum_repository, rpm_key, dnf, package_facts, timers"
+HOSTS="workstation utility servera"

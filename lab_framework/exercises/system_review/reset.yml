@@ -1,0 +1,38 @@
+---
+- name: Return serverb to a clean state
+  hosts: serverb
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Lab storage is removed
+      ansible.builtin.include_tasks: "{{ lab_lib }}/reset_storage.yml"
+      vars:
+        reset_vgs:
+          - app_vg
+
+    - name: Agent, cron job, bridge, and repository are removed
+      ansible.builtin.shell: |
+        systemctl disable --now lab-agent.timer 2>/dev/null
+        dnf -y -q remove lab-agent 2>/dev/null
+        rm -rf /etc/yum.repos.d/lab_internal.repo /var/lib/lab-agent /etc/cron.d/disk_report /home/devops/disk_report.log
+        for k in $(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SUMMARY}\n' | awk '/Lab Example Packaging/ {print $1}'); do rpm -e "$k"; done
+        nmcli connection delete labbr0 2>/dev/null
+        rm -rf /srv/app /var/log/app
+        true
+      changed_when: false
+
+    - name: Lab accounts are removed
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop:
+        - ops1
+        - ops2
+
+    - name: Lab group and sudo rule are removed
+      ansible.builtin.shell: |
+        groupdel ops 2>/dev/null
+        rm -f /etc/sudoers.d/ops
+        true
+      changed_when: false

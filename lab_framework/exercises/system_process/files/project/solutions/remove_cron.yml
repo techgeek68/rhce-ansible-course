@@ -1,0 +1,17 @@
+---
+- name: Remove the scheduled cron jobs
+  hosts: web
+  become: true
+  tasks:
+    - name: Personal crontab entry is gone
+      ansible.builtin.cron:
+        name: Record uptime
+        user: devops
+        state: absent
+
+    - name: System job is gone
+      ansible.builtin.cron:
+        name: Record disk usage
+        cron_file: lab_disk_usage
+        user: devops
+        state: absent

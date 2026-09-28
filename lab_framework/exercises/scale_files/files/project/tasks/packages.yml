@@ -1,0 +1,6 @@
+---
+# Parameters: pkgs (list of package names)
+- name: Required packages are installed
+  ansible.builtin.dnf:
+    name: "{{ pkgs }}"
+    state: present

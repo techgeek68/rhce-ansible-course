@@ -1,0 +1,2 @@
+DESCRIPTION="Guided: ignore_errors, force_handlers, failed_when, block"
+HOSTS="workstation servera serverb serverc serverd"

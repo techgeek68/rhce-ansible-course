@@ -1,0 +1,10 @@
+---
+- name: Web tier answers from the control side
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Every web host returns HTTP 200
+      ansible.builtin.uri:
+        url: "http://{{ item }}{{ verify_path | default('/') }}"
+      loop: "{{ groups['web'] }}"

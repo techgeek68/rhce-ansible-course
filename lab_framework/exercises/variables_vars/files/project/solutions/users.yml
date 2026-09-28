@@ -1,0 +1,17 @@
+---
+- name: Team account exists on every host
+  hosts: all
+  tasks:
+    - name: Team account is present
+      ansible.builtin.user:
+        name: "{{ team_user['name'] }}"
+        uid: "{{ team_user['uid'] }}"
+        comment: "{{ team_user['comment'] }}"
+        state: present
+      register: team_account
+
+    - name: Report the account
+      ansible.builtin.debug:
+        msg: >-
+          {{ team_account['name'] }} has UID {{ team_account['uid'] }}
+          and home {{ team_account['home'] }}

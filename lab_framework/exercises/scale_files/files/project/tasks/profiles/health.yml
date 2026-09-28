@@ -1,0 +1,12 @@
+---
+- name: Home page names the health profile
+  ansible.builtin.copy:
+    content: "{{ inventory_hostname }} runs the health profile\n"
+    dest: /var/www/html/index.html
+    mode: "0644"
+
+- name: Health endpoint for load balancers
+  ansible.builtin.copy:
+    content: "ok\n"
+    dest: /var/www/html/health.txt
+    mode: "0644"

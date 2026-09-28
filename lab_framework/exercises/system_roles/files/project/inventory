@@ -1,0 +1,9 @@
+[web]
+servera.lab.example.com
+serverb.lab.example.com
+
+[na_datacenter]
+servera.lab.example.com
+
+[eu_datacenter]
+serverb.lab.example.com

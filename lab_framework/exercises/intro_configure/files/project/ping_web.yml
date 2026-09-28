@@ -1,0 +1,7 @@
+---
+- name: Confirm Ansible can manage the web tier
+  hosts: web
+  gather_facts: false
+  tasks:
+    - name: Round trip through SSH and Python
+      ansible.builtin.ping:
